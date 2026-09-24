@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Three.js 練習 01 - 基本場景</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #1a1d24;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+  <script>
+    function createRenderer() {
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+      return renderer;
+    }
+
+    function createScene() {
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x1a1d24);
+      return scene;
+    }
+
+    function createCamera() {
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(3, 2.5, 4);
+      return camera;
+    }
+
+    function addLights(scene) {
+      const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+      scene.add(ambient);
+
+      const directional = new THREE.DirectionalLight(0xffffff, 1.0);
+      directional.position.set(5, 8, 4);
+      scene.add(directional);
+    }
+
+    function addCube(scene) {
+      const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+      const material = new THREE.MeshStandardMaterial({ color: 0x4f9dff });
+      const cube = new THREE.Mesh(geometry, material);
+      scene.add(cube);
+      return cube;
+    }
+
+    function createControls(camera, domElement) {
+      const controls = new THREE.OrbitControls(camera, domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.minDistance = 2;
+      controls.maxDistance = 20;
+      return controls;
+    }
+
+    function handleResize(camera, renderer) {
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    const renderer = createRenderer();
+    const scene = createScene();
+    const camera = createCamera();
+    addLights(scene);
+    addCube(scene);
+    const controls = createControls(camera, renderer.domElement);
+    handleResize(camera, renderer);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
