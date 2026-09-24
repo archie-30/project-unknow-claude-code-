@@ -2,92 +2,913 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Three.js 練習 01 - 基本場景</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>無盡原野 - 探索原型</title>
   <style>
     html, body {
       margin: 0;
       height: 100%;
       overflow: hidden;
-      background: #1a1d24;
+      background: #fff3dc;
     }
     canvas {
       display: block;
+      touch-action: none;
+      outline: none;
     }
   </style>
 </head>
 <body>
   <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/math/SimplexNoise.js"></script>
   <script>
+    const CONFIG = {
+      chunkSize: 48,
+      chunkSegments: 24,
+      loadRadius: 3,
+      unloadRadius: 5,
+      chunksPerFrame: 1,
+      lookAheadSeconds: 1.5,
+      shadowChunkRadius: 1,
+      shadowExtent: 36,
+      shadowMapSize: 2048,
+      fogNear: 60,
+      fogFar: 140,
+      physicsStep: 1 / 120,
+      gravity: 28,
+      walkSpeed: 4.2,
+      runSpeed: 8.5,
+      groundAccel: 45,
+      airAccel: 12,
+      jumpSpeed: 9,
+      coyoteTime: 0.1,
+      jumpBufferTime: 0.12,
+      groundSnap: 0.35,
+      stepUp: 0.5,
+      playerRadius: 0.35,
+      playerHeight: 1.8,
+      camFocusHeight: 1.4,
+      camMinDistance: 2.5,
+      camMaxDistance: 14,
+      camMinPitch: -0.3,
+      camMaxPitch: 1.35,
+      camClearance: 0.45,
+    };
+
+    const SUN_DIRECTION = new THREE.Vector3(0.55, 0.72, 0.4).normalize();
+    const UP = new THREE.Vector3(0, 1, 0);
+
+    function mulberry32(seed) {
+      let a = seed >>> 0;
+      return function () {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function hash2(x, z, seed) {
+      let h = (seed ^ Math.imul(x, 374761393) ^ Math.imul(z, 668265263)) >>> 0;
+      h = Math.imul(h ^ (h >>> 13), 1274126177);
+      return (h ^ (h >>> 16)) >>> 0;
+    }
+
+    function smoothstep(a, b, x) {
+      const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    }
+
+    function damp(current, target, lambda, dt) {
+      return target + (current - target) * Math.exp(-lambda * dt);
+    }
+
+    function readSeed() {
+      const value = parseInt(new URLSearchParams(location.search).get('seed'), 10);
+      return Number.isFinite(value) ? value >>> 0 : (Math.random() * 0xffffffff) >>> 0;
+    }
+
+    const WORLD_SEED = readSeed();
+
+    const Terrain = (() => {
+      const simplex = new THREE.SimplexNoise({ random: mulberry32(WORLD_SEED) });
+      const cell = CONFIG.chunkSize / CONFIG.chunkSegments;
+      const palette = {
+        sand: new THREE.Color(0xe3d49a),
+        grassLight: new THREE.Color(0x9fcc6b),
+        grass: new THREE.Color(0x7fba5c),
+        grassDark: new THREE.Color(0x629f4e),
+        dirt: new THREE.Color(0xb39a6b),
+        rock: new THREE.Color(0xa29d95),
+        snow: new THREE.Color(0xf5f7f2),
+      };
+
+      function noise(x, z) {
+        return simplex.noise(x, z);
+      }
+
+      function fbm(x, z, octaves) {
+        let sum = 0;
+        let amp = 1;
+        let freq = 1;
+        let norm = 0;
+        for (let i = 0; i < octaves; i++) {
+          sum += simplex.noise(x * freq, z * freq) * amp;
+          norm += amp;
+          amp *= 0.5;
+          freq *= 2.03;
+        }
+        return sum / norm;
+      }
+
+      function sampleHeight(x, z) {
+        const hills = smoothstep(-0.3, 0.6, simplex.noise(x * 0.0022 + 31.7, z * 0.0022 - 12.3));
+        const broad = simplex.noise(x * 0.005, z * 0.005) * 7;
+        const detail = fbm(x * 0.018, z * 0.018, 4) * (1.5 + 10 * hills);
+        const ridge = 1 - Math.abs(simplex.noise(x * 0.009 + 50, z * 0.009 + 50));
+        return broad + detail + ridge * ridge * ridge * 28 * hills * hills;
+      }
+
+      function surfaceAt(x, z, out) {
+        const ix = Math.floor(x / cell);
+        const iz = Math.floor(z / cell);
+        const fx = x / cell - ix;
+        const fz = z / cell - iz;
+        const x0 = ix * cell;
+        const z0 = iz * cell;
+        const h00 = sampleHeight(x0, z0);
+        const h11 = sampleHeight(x0 + cell, z0 + cell);
+        let dx;
+        let dz;
+        if (fx >= fz) {
+          const h10 = sampleHeight(x0 + cell, z0);
+          dx = h10 - h00;
+          dz = h11 - h10;
+        } else {
+          const h01 = sampleHeight(x0, z0 + cell);
+          dx = h11 - h01;
+          dz = h01 - h00;
+        }
+        out.height = h00 + dx * fx + dz * fz;
+        out.normalY = cell / Math.hypot(dx, cell, dz);
+        return out;
+      }
+
+      const scratch = { height: 0, normalY: 1 };
+
+      function heightAt(x, z) {
+        return surfaceAt(x, z, scratch).height;
+      }
+
+      function colorAt(x, z, height, normalY, out) {
+        if (height > 30) out.copy(palette.snow);
+        else if (normalY < 0.7) out.copy(palette.rock);
+        else if (normalY < 0.8 || height > 22) out.copy(palette.dirt);
+        else if (height < -5) out.copy(palette.sand);
+        else {
+          const patch = simplex.noise(x * 0.03 + 400, z * 0.03 - 400);
+          out.copy(patch > 0.35 ? palette.grassLight : patch < -0.35 ? palette.grassDark : palette.grass);
+        }
+        const jitter = (hash2(Math.floor(x * 4), Math.floor(z * 4), WORLD_SEED) / 4294967296 - 0.5) * 0.08;
+        return out.offsetHSL(0, 0, jitter);
+      }
+
+      return { cell, noise, sampleHeight, surfaceAt, heightAt, colorAt };
+    })();
+
+    function createGradientMap(renderer) {
+      const steps = new Uint8Array([95, 175, 240]);
+      const format = renderer.capabilities.isWebGL2 ? THREE.RedFormat : THREE.LuminanceFormat;
+      const texture = new THREE.DataTexture(steps, steps.length, 1, format);
+      texture.minFilter = THREE.NearestFilter;
+      texture.magFilter = THREE.NearestFilter;
+      texture.generateMipmaps = false;
+      texture.needsUpdate = true;
+      return texture;
+    }
+
+    function createMaterials(gradientMap) {
+      const toon = (color, extra = {}) => new THREE.MeshToonMaterial({ color, gradientMap, ...extra });
+      return {
+        terrain: toon(0xffffff, { vertexColors: true }),
+        player: toon(0xff8a5c),
+        visor: toon(0x34495e),
+        trunk: toon(0x8a6446),
+        pine: toon(0x4f8f5a),
+        leaf: toon(0x78b457),
+        rock: toon(0xa7a39b),
+        bush: toon(0x6aa84f),
+      };
+    }
+
+    function flatShaded(geometry) {
+      const result = geometry.index ? geometry.toNonIndexed() : geometry;
+      result.computeVertexNormals();
+      return result;
+    }
+
+    function createRockGeometry() {
+      const geometry = new THREE.DodecahedronGeometry(1, 0);
+      const position = geometry.attributes.position;
+      const rng = mulberry32(1234);
+      const offsets = new Map();
+      for (let i = 0; i < position.count; i++) {
+        const key = [position.getX(i), position.getY(i), position.getZ(i)].map((v) => v.toFixed(3)).join(',');
+        if (!offsets.has(key)) offsets.set(key, 0.75 + rng() * 0.45);
+        const scale = offsets.get(key);
+        position.setXYZ(i, position.getX(i) * scale, position.getY(i) * scale, position.getZ(i) * scale);
+      }
+      return flatShaded(geometry);
+    }
+
+    function createDecorAssets(materials) {
+      return {
+        trunk: { geometry: flatShaded(new THREE.CylinderGeometry(0.14, 0.22, 1.8, 5).translate(0, 0.9, 0)), material: materials.trunk },
+        pine: { geometry: flatShaded(new THREE.ConeGeometry(1.25, 3.4, 6).translate(0, 3.1, 0)), material: materials.pine },
+        leaf: { geometry: flatShaded(new THREE.IcosahedronGeometry(1.35, 0).translate(0, 2.6, 0)), material: materials.leaf },
+        rock: { geometry: createRockGeometry(), material: materials.rock },
+        bush: { geometry: flatShaded(new THREE.IcosahedronGeometry(0.75, 0).translate(0, 0.45, 0)), material: materials.bush },
+      };
+    }
+
+    function createSky() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, '#6ec3ec');
+      gradient.addColorStop(0.3, '#9fd8f2');
+      gradient.addColorStop(0.47, '#e4f2ee');
+      gradient.addColorStop(0.5, '#fff3dc');
+      gradient.addColorStop(1, '#fff3dc');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const texture = new THREE.CanvasTexture(canvas);
+      const sky = new THREE.Mesh(
+        new THREE.SphereGeometry(900, 24, 16),
+        new THREE.MeshBasicMaterial({ map: texture, side: THREE.BackSide, fog: false, depthWrite: false })
+      );
+      sky.renderOrder = -1;
+      sky.frustumCulled = false;
+      return sky;
+    }
+
+    function createLights(scene) {
+      const ambient = new THREE.AmbientLight(0xbfe4ff, 0.42);
+      scene.add(ambient);
+
+      const sun = new THREE.DirectionalLight(0xffe0a3, 0.78);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(CONFIG.shadowMapSize, CONFIG.shadowMapSize);
+      const cam = sun.shadow.camera;
+      cam.left = -CONFIG.shadowExtent;
+      cam.right = CONFIG.shadowExtent;
+      cam.top = CONFIG.shadowExtent;
+      cam.bottom = -CONFIG.shadowExtent;
+      cam.near = 1;
+      cam.far = 220;
+      sun.shadow.bias = -0.0004;
+      sun.shadow.normalBias = 0.03;
+      scene.add(sun, sun.target);
+
+      const right = new THREE.Vector3().crossVectors(UP, SUN_DIRECTION).normalize();
+      const up = new THREE.Vector3().crossVectors(SUN_DIRECTION, right);
+      const texel = (CONFIG.shadowExtent * 2) / CONFIG.shadowMapSize;
+      const snapped = new THREE.Vector3();
+
+      function follow(center) {
+        const r = Math.round(center.dot(right) / texel) * texel;
+        const u = Math.round(center.dot(up) / texel) * texel;
+        const d = center.dot(SUN_DIRECTION);
+        snapped.copy(right).multiplyScalar(r).addScaledVector(up, u).addScaledVector(SUN_DIRECTION, d);
+        sun.target.position.copy(snapped);
+        sun.position.copy(snapped).addScaledVector(SUN_DIRECTION, 100);
+      }
+
+      return { follow };
+    }
+
+    class Chunk {
+      constructor(cx, cz, materials, assets) {
+        this.cx = cx;
+        this.cz = cz;
+        this.originX = cx * CONFIG.chunkSize;
+        this.originZ = cz * CONFIG.chunkSize;
+        this.group = new THREE.Group();
+        this.group.position.set(this.originX, 0, this.originZ);
+        this.colliders = [];
+        this.decorMeshes = [];
+        this.box = new THREE.Box3();
+
+        const { mesh, minY, maxY } = this.buildTerrain(materials.terrain);
+        this.terrain = mesh;
+        this.group.add(mesh);
+        this.buildDecorations(assets);
+        this.box.min.set(this.originX, minY - 1, this.originZ);
+        this.box.max.set(this.originX + CONFIG.chunkSize, maxY + 10, this.originZ + CONFIG.chunkSize);
+      }
+
+      buildTerrain(material) {
+        const seg = CONFIG.chunkSegments;
+        const cell = Terrain.cell;
+        const stride = seg + 1;
+        const heights = new Float32Array(stride * stride);
+        let minY = Infinity;
+        let maxY = -Infinity;
+        for (let j = 0; j <= seg; j++) {
+          for (let i = 0; i <= seg; i++) {
+            const h = Terrain.sampleHeight(this.originX + i * cell, this.originZ + j * cell);
+            heights[j * stride + i] = h;
+            minY = Math.min(minY, h);
+            maxY = Math.max(maxY, h);
+          }
+        }
+
+        const positions = new Float32Array(seg * seg * 18);
+        const colors = new Float32Array(seg * seg * 18);
+        const color = new THREE.Color();
+        let offset = 0;
+
+        const addTriangle = (ax, ay, az, bx, by, bz, qx, qy, qz) => {
+          const ux = bx - ax, uy = by - ay, uz = bz - az;
+          const vx = qx - ax, vy = qy - ay, vz = qz - az;
+          const nx = uy * vz - uz * vy;
+          const ny = uz * vx - ux * vz;
+          const nz = ux * vy - uy * vx;
+          Terrain.colorAt(
+            this.originX + (ax + bx + qx) / 3,
+            this.originZ + (az + bz + qz) / 3,
+            (ay + by + qy) / 3,
+            ny / Math.hypot(nx, ny, nz),
+            color
+          );
+          positions.set([ax, ay, az, bx, by, bz, qx, qy, qz], offset);
+          for (let k = 0; k < 3; k++) {
+            colors[offset + k * 3] = color.r;
+            colors[offset + k * 3 + 1] = color.g;
+            colors[offset + k * 3 + 2] = color.b;
+          }
+          offset += 9;
+        };
+
+        for (let j = 0; j < seg; j++) {
+          for (let i = 0; i < seg; i++) {
+            const x0 = i * cell, x1 = x0 + cell;
+            const z0 = j * cell, z1 = z0 + cell;
+            const h00 = heights[j * stride + i];
+            const h10 = heights[j * stride + i + 1];
+            const h01 = heights[(j + 1) * stride + i];
+            const h11 = heights[(j + 1) * stride + i + 1];
+            addTriangle(x0, h00, z0, x1, h11, z1, x1, h10, z0);
+            addTriangle(x0, h00, z0, x0, h01, z1, x1, h11, z1);
+          }
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.computeVertexNormals();
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.receiveShadow = true;
+        return { mesh, minY, maxY };
+      }
+
+      buildDecorations(assets) {
+        const rng = mulberry32(hash2(this.cx, this.cz, WORLD_SEED ^ 0x9e3779b9));
+        const spacing = 6;
+        const cells = CONFIG.chunkSize / spacing;
+        const lists = { trunk: [], pine: [], leaf: [], rock: [], bush: [] };
+        const surface = { height: 0, normalY: 1 };
+
+        const entry = (x, y, z, rx, ry, rz, sx, sy, sz, tint) => ({ x, y, z, rx, ry, rz, sx, sy, sz, tint });
+        const tint = (base, spread) => {
+          const t = base + rng() * spread;
+          return [t * (0.95 + rng() * 0.1), t, t * (0.92 + rng() * 0.1)];
+        };
+
+        for (let gj = 0; gj < cells; gj++) {
+          for (let gi = 0; gi < cells; gi++) {
+            const x = this.originX + (gi + rng()) * spacing;
+            const z = this.originZ + (gj + rng()) * spacing;
+            Terrain.surfaceAt(x, z, surface);
+            const h = surface.height;
+            const ny = surface.normalY;
+            const forest = smoothstep(-0.15, 0.55, Terrain.noise(x * 0.008 + 900, z * 0.008 - 300));
+            const roll = rng();
+            const treeChance = ny > 0.82 && h < 26 ? forest * 0.6 : 0;
+            const rockChance = 0.05 + (ny < 0.8 ? 0.2 : 0);
+            const bushChance = ny > 0.75 && h < 28 ? 0.12 + forest * 0.2 : 0;
+
+            if (roll < treeChance) {
+              const s = 0.75 + rng() * 0.6;
+              const ry = rng() * Math.PI * 2;
+              const sy = s * (0.9 + rng() * 0.3);
+              const isPine = Terrain.noise(x * 0.02 + 77, z * 0.02) + (h - 8) * 0.05 > 0;
+              lists.trunk.push(entry(x, h - 0.15, z, 0, ry, 0, s, sy, s, tint(0.9, 0.2)));
+              lists[isPine ? 'pine' : 'leaf'].push(entry(x, h - 0.15, z, 0, ry, 0, s, sy, s, tint(0.85, 0.25)));
+              this.colliders.push({ x, z, radius: 0.28 * s, top: Infinity, walkable: false });
+            } else if (roll < treeChance + rockChance) {
+              const s = 0.45 + rng() * rng() * 1.8;
+              const sx = s * (0.8 + rng() * 0.5);
+              const sy = s * (0.55 + rng() * 0.45);
+              const sz = s * (0.8 + rng() * 0.5);
+              const y = h - 0.25 * sy;
+              lists.rock.push(entry(x, y, z, (rng() - 0.5) * 0.4, rng() * Math.PI * 2, (rng() - 0.5) * 0.4, sx, sy, sz, tint(0.85, 0.25)));
+              this.colliders.push({ x, z, radius: Math.max(sx, sz) * 0.85, top: y + sy * 0.85, walkable: true });
+            } else if (roll < treeChance + rockChance + bushChance) {
+              const clusterSize = rng() < 0.35 ? 3 : 1;
+              for (let k = 0; k < clusterSize; k++) {
+                const bx = x + (k === 0 ? 0 : (rng() - 0.5) * 2.2);
+                const bz = z + (k === 0 ? 0 : (rng() - 0.5) * 2.2);
+                const s = 0.6 + rng() * 0.6;
+                lists.bush.push(entry(bx, Terrain.heightAt(bx, bz) - 0.1, bz, 0, rng() * Math.PI * 2, 0, s, s * (0.6 + rng() * 0.3), s, tint(0.85, 0.3)));
+              }
+            }
+          }
+        }
+
+        const matrix = new THREE.Matrix4();
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const euler = new THREE.Euler();
+        const scale = new THREE.Vector3();
+        const color = new THREE.Color();
+
+        for (const [name, entries] of Object.entries(lists)) {
+          if (entries.length === 0) continue;
+          const asset = assets[name];
+          const mesh = new THREE.InstancedMesh(asset.geometry, asset.material, entries.length);
+          entries.forEach((e, i) => {
+            position.set(e.x - this.originX, e.y, e.z - this.originZ);
+            quaternion.setFromEuler(euler.set(e.rx, e.ry, e.rz));
+            scale.set(e.sx, e.sy, e.sz);
+            mesh.setMatrixAt(i, matrix.compose(position, quaternion, scale));
+            mesh.setColorAt(i, color.setRGB(e.tint[0], e.tint[1], e.tint[2]));
+          });
+          mesh.instanceMatrix.needsUpdate = true;
+          mesh.instanceColor.needsUpdate = true;
+          mesh.frustumCulled = false;
+          mesh.receiveShadow = true;
+          this.decorMeshes.push(mesh);
+          this.group.add(mesh);
+        }
+      }
+
+      setCastShadow(enabled) {
+        for (const mesh of this.decorMeshes) mesh.castShadow = enabled;
+      }
+
+      dispose() {
+        this.terrain.geometry.dispose();
+        for (const mesh of this.decorMeshes) mesh.dispose();
+      }
+    }
+
+    class World {
+      constructor(scene, materials, assets) {
+        this.scene = scene;
+        this.materials = materials;
+        this.assets = assets;
+        this.chunks = new Map();
+        this.queue = [];
+        this.centerX = null;
+        this.centerZ = null;
+        this.frustum = new THREE.Frustum();
+        this.projScreen = new THREE.Matrix4();
+      }
+
+      static key(cx, cz) {
+        return cx + ',' + cz;
+      }
+
+      chunkCoord(value) {
+        return Math.floor(value / CONFIG.chunkSize);
+      }
+
+      loadChunk(cx, cz) {
+        const chunk = new Chunk(cx, cz, this.materials, this.assets);
+        chunk.setCastShadow(this.isShadowChunk(cx, cz));
+        this.chunks.set(World.key(cx, cz), chunk);
+        this.scene.add(chunk.group);
+      }
+
+      unloadChunk(key, chunk) {
+        this.scene.remove(chunk.group);
+        chunk.dispose();
+        this.chunks.delete(key);
+      }
+
+      isShadowChunk(cx, cz) {
+        return Math.max(Math.abs(cx - this.centerX), Math.abs(cz - this.centerZ)) <= CONFIG.shadowChunkRadius;
+      }
+
+      loadAll(position) {
+        this.update(position, new THREE.Vector3());
+        while (this.queue.length > 0) {
+          const { cx, cz } = this.queue.shift();
+          this.loadChunk(cx, cz);
+        }
+      }
+
+      update(position, velocity) {
+        const cx = this.chunkCoord(position.x);
+        const cz = this.chunkCoord(position.z);
+        if (cx !== this.centerX || cz !== this.centerZ) {
+          this.centerX = cx;
+          this.centerZ = cz;
+          this.refresh(position, velocity);
+        }
+
+        let built = 0;
+        while (built < CONFIG.chunksPerFrame && this.queue.length > 0) {
+          const next = this.queue.shift();
+          if (this.chunks.has(World.key(next.cx, next.cz))) continue;
+          if (Math.max(Math.abs(next.cx - this.centerX), Math.abs(next.cz - this.centerZ)) > CONFIG.loadRadius) continue;
+          this.loadChunk(next.cx, next.cz);
+          built++;
+        }
+      }
+
+      refresh(position, velocity) {
+        for (const [key, chunk] of this.chunks) {
+          const distance = Math.max(Math.abs(chunk.cx - this.centerX), Math.abs(chunk.cz - this.centerZ));
+          if (distance > CONFIG.unloadRadius) this.unloadChunk(key, chunk);
+          else chunk.setCastShadow(distance <= CONFIG.shadowChunkRadius);
+        }
+
+        const lookX = position.x + velocity.x * CONFIG.lookAheadSeconds;
+        const lookZ = position.z + velocity.z * CONFIG.lookAheadSeconds;
+        const half = CONFIG.chunkSize / 2;
+        this.queue = [];
+        for (let dz = -CONFIG.loadRadius; dz <= CONFIG.loadRadius; dz++) {
+          for (let dx = -CONFIG.loadRadius; dx <= CONFIG.loadRadius; dx++) {
+            const cx = this.centerX + dx;
+            const cz = this.centerZ + dz;
+            if (this.chunks.has(World.key(cx, cz))) continue;
+            const mx = cx * CONFIG.chunkSize + half - lookX;
+            const mz = cz * CONFIG.chunkSize + half - lookZ;
+            this.queue.push({ cx, cz, priority: mx * mx + mz * mz });
+          }
+        }
+        this.queue.sort((a, b) => a.priority - b.priority);
+      }
+
+      cull(camera) {
+        this.projScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+        this.frustum.setFromProjectionMatrix(this.projScreen);
+        for (const chunk of this.chunks.values()) {
+          const near = Math.max(Math.abs(chunk.cx - this.centerX), Math.abs(chunk.cz - this.centerZ)) <= CONFIG.shadowChunkRadius;
+          chunk.group.visible = near || this.frustum.intersectsBox(chunk.box);
+        }
+      }
+
+      forEachColliderNear(x, z, callback) {
+        const cx = this.chunkCoord(x);
+        const cz = this.chunkCoord(z);
+        for (let dz = -1; dz <= 1; dz++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const chunk = this.chunks.get(World.key(cx + dx, cz + dz));
+            if (!chunk) continue;
+            for (const collider of chunk.colliders) callback(collider);
+          }
+        }
+      }
+
+      groundHeight(x, z, feetY) {
+        let ground = Terrain.heightAt(x, z);
+        this.forEachColliderNear(x, z, (c) => {
+          if (!c.walkable || feetY < c.top - CONFIG.stepUp) return;
+          const dx = x - c.x;
+          const dz = z - c.z;
+          if (dx * dx + dz * dz < c.radius * c.radius * 0.55) ground = Math.max(ground, c.top);
+        });
+        return ground;
+      }
+
+      resolveObstacles(position, velocity, radius) {
+        this.forEachColliderNear(position.x, position.z, (c) => {
+          if (c.walkable && position.y >= c.top - CONFIG.stepUp) return;
+          const dx = position.x - c.x;
+          const dz = position.z - c.z;
+          const minDistance = c.radius + radius;
+          const distSq = dx * dx + dz * dz;
+          if (distSq >= minDistance * minDistance) return;
+          const dist = Math.sqrt(distSq) || 0.0001;
+          const nx = dx / dist;
+          const nz = dz / dist;
+          position.x = c.x + nx * minDistance;
+          position.z = c.z + nz * minDistance;
+          const into = velocity.x * nx + velocity.z * nz;
+          if (into < 0) {
+            velocity.x -= into * nx;
+            velocity.z -= into * nz;
+          }
+        });
+      }
+    }
+
+    class Input {
+      constructor(target) {
+        this.keys = new Set();
+        this.jumpQueued = false;
+        const handled = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'Space']);
+        window.addEventListener('keydown', (e) => {
+          if (!handled.has(e.code)) return;
+          e.preventDefault();
+          if (e.code === 'Space' && !e.repeat) this.jumpQueued = true;
+          this.keys.add(e.code);
+        });
+        window.addEventListener('keyup', (e) => this.keys.delete(e.code));
+        window.addEventListener('blur', () => this.keys.clear());
+        target.addEventListener('contextmenu', (e) => e.preventDefault());
+      }
+
+      axis() {
+        const x = (this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('KeyA') ? 1 : 0);
+        const z = (this.keys.has('KeyS') ? 1 : 0) - (this.keys.has('KeyW') ? 1 : 0);
+        return { x, z };
+      }
+
+      get running() {
+        return this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+      }
+
+      consumeJump() {
+        const queued = this.jumpQueued;
+        this.jumpQueued = false;
+        return queued;
+      }
+    }
+
+    class Player {
+      constructor(materials) {
+        this.position = new THREE.Vector3();
+        this.previousPosition = new THREE.Vector3();
+        this.renderPosition = new THREE.Vector3();
+        this.velocity = new THREE.Vector3();
+        this.grounded = false;
+        this.timeSinceGrounded = 0;
+        this.jumpBufferTimer = 0;
+        this.hasJumped = false;
+        this.facing = 0;
+        this.squash = 0;
+
+        const radius = CONFIG.playerRadius;
+        const bodyLength = CONFIG.playerHeight - radius * 2;
+        const body = new THREE.Mesh(flatShaded(new THREE.CapsuleGeometry(radius, bodyLength, 3, 8)), materials.player);
+        body.position.y = CONFIG.playerHeight / 2;
+        const visor = new THREE.Mesh(flatShaded(new THREE.BoxGeometry(0.42, 0.14, 0.2)), materials.visor);
+        visor.position.set(0, 1.5, radius - 0.04);
+        this.pivot = new THREE.Group();
+        this.pivot.add(body, visor);
+        body.castShadow = true;
+        visor.castShadow = true;
+        this.mesh = new THREE.Group();
+        this.mesh.add(this.pivot);
+      }
+
+      spawn(x, z) {
+        this.position.set(x, Terrain.heightAt(x, z) + 0.05, z);
+        this.previousPosition.copy(this.position);
+        this.renderPosition.copy(this.position);
+        this.velocity.set(0, 0, 0);
+      }
+
+      fixedUpdate(dt, input, cameraYaw, world) {
+        this.previousPosition.copy(this.position);
+
+        const { x: ix, z: iz } = input.axis();
+        const forwardX = -Math.sin(cameraYaw);
+        const forwardZ = -Math.cos(cameraYaw);
+        let wishX = Math.cos(cameraYaw) * ix + forwardX * -iz;
+        let wishZ = -Math.sin(cameraYaw) * ix + forwardZ * -iz;
+        const wishLength = Math.hypot(wishX, wishZ);
+        let targetSpeed = 0;
+        if (wishLength > 0) {
+          wishX /= wishLength;
+          wishZ /= wishLength;
+          targetSpeed = input.running ? CONFIG.runSpeed : CONFIG.walkSpeed;
+          if (this.grounded) {
+            const grade = (Terrain.heightAt(this.position.x + wishX * 0.5, this.position.z + wishZ * 0.5) - Terrain.heightAt(this.position.x, this.position.z)) / 0.5;
+            targetSpeed *= Math.min(1, Math.max(0.35, 1 - (grade - 0.6) * 0.8));
+          }
+        }
+
+        const accel = (this.grounded ? CONFIG.groundAccel : CONFIG.airAccel) * dt;
+        const dvx = wishX * targetSpeed - this.velocity.x;
+        const dvz = wishZ * targetSpeed - this.velocity.z;
+        const dvLength = Math.hypot(dvx, dvz);
+        if (dvLength <= accel) {
+          this.velocity.x += dvx;
+          this.velocity.z += dvz;
+        } else {
+          this.velocity.x += (dvx / dvLength) * accel;
+          this.velocity.z += (dvz / dvLength) * accel;
+        }
+
+        if (input.consumeJump()) this.jumpBufferTimer = CONFIG.jumpBufferTime;
+        else this.jumpBufferTimer = Math.max(0, this.jumpBufferTimer - dt);
+        const canJump = !this.hasJumped && (this.grounded || this.timeSinceGrounded < CONFIG.coyoteTime);
+        if (this.jumpBufferTimer > 0 && canJump) {
+          this.velocity.y = CONFIG.jumpSpeed;
+          this.grounded = false;
+          this.hasJumped = true;
+          this.jumpBufferTimer = 0;
+        }
+
+        const wasGrounded = this.grounded;
+        this.velocity.y -= CONFIG.gravity * dt;
+        this.position.addScaledVector(this.velocity, dt);
+        world.resolveObstacles(this.position, this.velocity, CONFIG.playerRadius);
+
+        const groundY = world.groundHeight(this.position.x, this.position.z, this.position.y);
+        if (this.position.y <= groundY) {
+          const impact = -this.velocity.y;
+          this.position.y = groundY;
+          if (this.velocity.y < 0) this.velocity.y = 0;
+          if (!wasGrounded) this.squash = Math.max(this.squash, Math.min(0.28, impact * 0.022));
+          this.grounded = true;
+        } else if (wasGrounded && this.velocity.y <= 0 && this.position.y - groundY < CONFIG.groundSnap) {
+          this.position.y = groundY;
+          this.velocity.y = 0;
+          this.grounded = true;
+        } else {
+          this.grounded = false;
+        }
+
+        if (this.grounded) {
+          this.timeSinceGrounded = 0;
+          this.hasJumped = false;
+        } else {
+          this.timeSinceGrounded += dt;
+        }
+      }
+
+      render(alpha, dt) {
+        this.renderPosition.lerpVectors(this.previousPosition, this.position, alpha);
+        this.mesh.position.copy(this.renderPosition);
+
+        const speed = Math.hypot(this.velocity.x, this.velocity.z);
+        if (speed > 0.3) {
+          const target = Math.atan2(this.velocity.x, this.velocity.z);
+          let delta = target - this.facing;
+          delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+          this.facing += delta * (1 - Math.exp(-14 * dt));
+        }
+        this.mesh.rotation.y = this.facing;
+
+        this.squash = damp(this.squash, 0, 10, dt);
+        const stretch = this.grounded ? 0 : Math.max(-0.08, Math.min(0.1, this.velocity.y * 0.012));
+        const sy = 1 - this.squash + stretch;
+        const sxz = 1 / Math.sqrt(sy);
+        this.pivot.scale.set(sxz, sy, sxz);
+      }
+    }
+
+    class CameraRig {
+      constructor(camera, domElement) {
+        this.camera = camera;
+        this.yaw = 0;
+        this.pitch = 0.32;
+        this.distance = 7;
+        this.currentDistance = 7;
+        this.focus = new THREE.Vector3();
+        this.direction = new THREE.Vector3();
+        this.probe = new THREE.Vector3();
+        this.pointers = new Map();
+        this.pinchDistance = 0;
+
+        domElement.addEventListener('pointerdown', (e) => {
+          domElement.setPointerCapture(e.pointerId);
+          this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (this.pointers.size === 2) this.pinchDistance = this.pointerSpread();
+        });
+        domElement.addEventListener('pointermove', (e) => {
+          const last = this.pointers.get(e.pointerId);
+          if (!last) return;
+          if (this.pointers.size === 1) {
+            this.yaw -= (e.clientX - last.x) * 0.005;
+            this.pitch += (e.clientY - last.y) * 0.004;
+            this.pitch = Math.min(CONFIG.camMaxPitch, Math.max(CONFIG.camMinPitch, this.pitch));
+          }
+          last.x = e.clientX;
+          last.y = e.clientY;
+          if (this.pointers.size === 2) {
+            const spread = this.pointerSpread();
+            if (this.pinchDistance > 0) this.zoom(this.pinchDistance / spread);
+            this.pinchDistance = spread;
+          }
+        });
+        const release = (e) => {
+          this.pointers.delete(e.pointerId);
+          this.pinchDistance = 0;
+        };
+        domElement.addEventListener('pointerup', release);
+        domElement.addEventListener('pointercancel', release);
+        domElement.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          this.zoom(Math.exp(e.deltaY * 0.001));
+        }, { passive: false });
+      }
+
+      pointerSpread() {
+        const [a, b] = [...this.pointers.values()];
+        return Math.hypot(a.x - b.x, a.y - b.y);
+      }
+
+      zoom(factor) {
+        this.distance = Math.min(CONFIG.camMaxDistance, Math.max(CONFIG.camMinDistance, this.distance * factor));
+      }
+
+      snapTo(target) {
+        this.focus.set(target.x, target.y + CONFIG.camFocusHeight, target.z);
+      }
+
+      update(dt, target) {
+        this.focus.x = damp(this.focus.x, target.x, 14, dt);
+        this.focus.z = damp(this.focus.z, target.z, 14, dt);
+        this.focus.y = damp(this.focus.y, target.y + CONFIG.camFocusHeight, 8, dt);
+
+        const cosPitch = Math.cos(this.pitch);
+        this.direction.set(Math.sin(this.yaw) * cosPitch, Math.sin(this.pitch), Math.cos(this.yaw) * cosPitch);
+
+        let allowed = this.distance;
+        const steps = 28;
+        for (let i = 1; i <= steps; i++) {
+          const d = (this.distance * i) / steps;
+          this.probe.copy(this.focus).addScaledVector(this.direction, d);
+          if (this.probe.y < Terrain.heightAt(this.probe.x, this.probe.z) + CONFIG.camClearance) {
+            allowed = Math.max(0.6, d - this.distance / steps);
+            break;
+          }
+        }
+        this.currentDistance = allowed < this.currentDistance ? allowed : damp(this.currentDistance, allowed, 4, dt);
+
+        const position = this.camera.position.copy(this.focus).addScaledVector(this.direction, this.currentDistance);
+        const floor = Terrain.heightAt(position.x, position.z) + CONFIG.camClearance;
+        if (position.y < floor) position.y = floor;
+        this.camera.lookAt(this.focus);
+      }
+    }
+
     function createRenderer() {
       const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
       document.body.appendChild(renderer.domElement);
       return renderer;
     }
 
-    function createScene() {
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x1a1d24);
-      return scene;
-    }
-
-    function createCamera() {
-      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-      camera.position.set(3, 2.5, 4);
-      return camera;
-    }
-
-    function addLights(scene) {
-      const ambient = new THREE.AmbientLight(0xffffff, 0.35);
-      scene.add(ambient);
-
-      const directional = new THREE.DirectionalLight(0xffffff, 1.0);
-      directional.position.set(5, 8, 4);
-      scene.add(directional);
-    }
-
-    function addCube(scene) {
-      const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-      const material = new THREE.MeshStandardMaterial({ color: 0x4f9dff });
-      const cube = new THREE.Mesh(geometry, material);
-      scene.add(cube);
-      return cube;
-    }
-
-    function createControls(camera, domElement) {
-      const controls = new THREE.OrbitControls(camera, domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.08;
-      controls.minDistance = 2;
-      controls.maxDistance = 20;
-      return controls;
-    }
-
-    function handleResize(camera, renderer) {
-      window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      });
-    }
-
     const renderer = createRenderer();
-    const scene = createScene();
-    const camera = createCamera();
-    addLights(scene);
-    addCube(scene);
-    const controls = createControls(camera, renderer.domElement);
-    handleResize(camera, renderer);
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xfff3dc, CONFIG.fogNear, CONFIG.fogFar);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1200);
 
-    function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
+    const materials = createMaterials(createGradientMap(renderer));
+    const sky = createSky();
+    scene.add(sky);
+    const sunlight = createLights(scene);
+    const world = new World(scene, materials, createDecorAssets(materials));
+    const input = new Input(renderer.domElement);
+    const player = new Player(materials);
+    scene.add(player.mesh);
+    const cameraRig = new CameraRig(camera, renderer.domElement);
+
+    player.spawn(0, 0);
+    world.loadAll(player.position);
+    cameraRig.snapTo(player.position);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const clock = new THREE.Clock();
+    let accumulator = 0;
+
+    function frame() {
+      requestAnimationFrame(frame);
+      const dt = Math.min(clock.getDelta(), 0.1);
+      accumulator += dt;
+      while (accumulator >= CONFIG.physicsStep) {
+        player.fixedUpdate(CONFIG.physicsStep, input, cameraRig.yaw, world);
+        accumulator -= CONFIG.physicsStep;
+      }
+      player.render(accumulator / CONFIG.physicsStep, dt);
+      world.update(player.position, player.velocity);
+      cameraRig.update(dt, player.renderPosition);
+      sunlight.follow(player.renderPosition);
+      sky.position.copy(camera.position);
+      camera.updateMatrixWorld();
+      world.cull(camera);
       renderer.render(scene, camera);
     }
-    animate();
+    frame();
   </script>
 </body>
 </html>
