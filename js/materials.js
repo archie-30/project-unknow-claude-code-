@@ -67,7 +67,6 @@ function addWaves(material) {
 function createMaterials(gradientMap) {
   const toon = (color, extra = {}) => new THREE.MeshToonMaterial({ color, gradientMap, ...extra });
   const water = addWaves(toon(0xffffff, { vertexColors: true, transparent: true, depthWrite: false }));
-  water.flatShading = true;
   return {
     gradientMap,
     toon,

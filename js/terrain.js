@@ -6,7 +6,8 @@ const Terrain = (() => {
     [BIOME.MEADOW]: [c(0xa9c27f), c(0x93b36e), c(0x9fbb76)],
     [BIOME.FOREST]: [c(0x7fa062), c(0x729558), c(0x6a8c52)],
     [BIOME.TAIGA]: [c(0x8e9f6e), c(0x809366), c(0x97a878)],
-    [BIOME.SNOW]: [c(0xf3f1ec), c(0xe8eaea), c(0xf7f5f0)],
+    [BIOME.SNOW]: [c(0xd9dcdb), c(0xcfd4d6), c(0xdfdfda)],
+    [BIOME.OCEAN]: [c(0xecdfb8), c(0xe6d6aa), c(0xf0e4c4)],
     [BIOME.SAVANNA]: [c(0xd4c48a), c(0xc7b77c), c(0xdccd96)],
     [BIOME.DESERT]: [c(0xecd8a8), c(0xe3cb95), c(0xf1e1b8)],
   };
@@ -37,7 +38,20 @@ const Terrain = (() => {
     return sum / norm;
   }
 
+  function oceanMask(x, z) {
+    return smoothstep(0.28, 0.58, simplex.noise(x * 0.0011 + 300, z * 0.0011 - 800));
+  }
+
   function sampleHeight(x, z) {
+    const ocean = oceanMask(x, z);
+    const land = landHeight(x, z);
+    if (ocean <= 0) return land;
+    const seabed = -24 + simplex.noise(x * 0.01, z * 0.01) * 3;
+    const coast = Math.min(land, CONFIG.waterLevel + 1.5 + (land - CONFIG.waterLevel) * 0.25);
+    return ocean < 0.5 ? lerp(land, coast, ocean * 2) : lerp(coast, seabed, (ocean - 0.5) * 2);
+  }
+
+  function landHeight(x, z) {
     const hills = smoothstep(-0.3, 0.6, simplex.noise(x * 0.0022 + 31.7, z * 0.0022 - 12.3));
     const broad = simplex.noise(x * 0.005, z * 0.005) * 7;
     const detail = fbm(x * 0.018, z * 0.018, 4) * (1.5 + 10 * hills);
@@ -82,6 +96,7 @@ const Terrain = (() => {
   }
 
   function biomeAt(x, z, height) {
+    if (height < CONFIG.waterLevel + 0.5 && oceanMask(x, z) > 0.45) return BIOME.OCEAN;
     const jitter = simplex.noise(x * 0.05, z * 0.05) * 0.05;
     const temp = simplex.noise(x * 0.0014 + 500, z * 0.0014 + 500) - Math.max(0, height - 8) * 0.02 + jitter;
     const moist = simplex.noise(x * 0.0017 - 700, z * 0.0017 + 300) - jitter;
@@ -99,7 +114,7 @@ const Terrain = (() => {
     const arid = biome === BIOME.DESERT || biome === BIOME.SAVANNA;
     let strata = 0;
     if (height < CONFIG.waterLevel - 0.3) out.copy(special.seabed);
-    else if (height < CONFIG.waterLevel + 0.7 && biome !== BIOME.SNOW) out.copy(special.beach);
+    else if ((height < CONFIG.waterLevel + 0.7 || (biome === BIOME.OCEAN || oceanMask(x, z) > 0.3) && height < CONFIG.waterLevel + 2.2) && biome !== BIOME.SNOW) out.copy(special.beach);
     else if (normalY < 0.68) {
       out.copy(arid ? special.sandstone : biome === BIOME.SNOW ? special.coldRock : special.rock);
       strata = Math.floor(height / 1.3 + grain * 0.4) % 2 === 0 ? 0.05 : -0.04;
@@ -112,5 +127,5 @@ const Terrain = (() => {
     return out.offsetHSL(0, 0, grain * 0.07 + strata);
   }
 
-  return { cell, noise, sampleHeight, interpolate, surfaceAt, heightAt, biomeAt, colorAt };
+  return { cell, oceanMask, noise, sampleHeight, interpolate, surfaceAt, heightAt, biomeAt, colorAt };
 })();

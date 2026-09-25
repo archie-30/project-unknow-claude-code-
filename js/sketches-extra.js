@@ -212,3 +212,24 @@ const SPECIES_SKETCHES = (() => {
     [SPECIES.BUTTERFLY]: butterfly,
   };
 })();
+
+BIOME_SKETCHES[BIOME.OCEAN] = (() => {
+  const { ink, thin, bird } = SketchKit;
+  return SketchFrame(`
+    <rect width="200" height="130" fill="#d8eef4"/>
+    <circle cx="150" cy="30" r="12" fill="#ffe27a" ${ink}/>
+    <g class="sk-drift"><path d="M24 30 q2 -8 12 -6 q6 -8 15 -1 q9 -1 8 6 h-31 q-6 -1 -4 1z" fill="#ffffff" ${ink}/></g>
+    ${bird(70, 24, 0)}${bird(86, 30, -1.4)}
+    <path d="M0 62 H200 V130 H0Z" fill="#5f9fbf" ${ink}/>
+    <path d="M0 74 H200 V130 H0Z" fill="#78b4c8"/>
+    ${[0, 1, 2].map((i) => `<path class="sk-wave" style="animation-delay:${-i * 0.9}s" d="M${-10 + i * 12} ${80 + i * 10} q12 -6 24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>`).join('')}
+    <g class="sk-bob" style="animation-duration:3s">
+      <path d="M120 70 h30 l-6 7 h-19z" fill="#c8583f" ${ink}/>
+      <path d="M135 70 V44 L150 66Z" fill="#f3ead8" ${ink}/>
+      <path d="M134 70 V48 L122 66Z" fill="#efe6d6" ${thin}/>
+    </g>
+    <path d="M0 112 Q50 100 110 110 T200 104 V130 H0Z" fill="#ecdfb8" ${ink}/>
+    <path class="sk-foam" d="M0 112 Q50 100 110 110 T200 104" fill="none" stroke="#ffffff" stroke-width="3"/>
+    <path d="M40 122 q4 -6 8 0z" fill="#f2b8a8" ${thin}/><path d="M150 120 l4 -4 l4 4 l-4 3z" fill="#f0a23a" ${thin}/>
+  `);
+})();

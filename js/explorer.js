@@ -205,13 +205,13 @@ class ExplorerAnimator {
     };
 
     const w = {
-      hipL: 0.35 + Math.sin(p * 2) * 0.3, hipR: 0.35 - Math.sin(p * 2) * 0.3,
-      kneeL: 0.8 + Math.cos(p) * 0.55, kneeR: 0.8 + Math.cos(p) * 0.55,
+      hipL: 0.25 + Math.sin(p * 1.2) * 0.25, hipR: 0.25 - Math.sin(p * 1.2) * 0.25,
+      kneeL: 0.6 + Math.cos(p * 1.2) * 0.35, kneeR: 0.6 - Math.cos(p * 1.2) * 0.35,
       ankleL: 0.5, ankleR: 0.5,
-      shoulderL: -1.35 + sn * 0.9, shoulderR: -1.35 + sn * 0.9,
-      armOutL: 0.55 + cs * 0.45, armOutR: -0.55 - cs * 0.45,
-      elbowL: -0.5 - Math.max(0, cs) * 0.8, elbowR: -0.5 - Math.max(0, cs) * 0.8,
-      pelvisYaw: 0, torsoYaw: 0, pelvisRoll: Math.sin(this.time * 1.3) * 0.05, lean: 0.55, bob: Math.sin(p) * 0.03, headYaw: 0,
+      shoulderL: -0.45 + sn * 0.3, shoulderR: -0.45 - sn * 0.3,
+      armOutL: 0.95 + cs * 0.3, armOutR: -0.95 - cs * 0.3,
+      elbowL: -0.55, elbowR: -0.55,
+      pelvisYaw: 0, torsoYaw: 0, pelvisRoll: Math.sin(this.time * 1.3) * 0.04, lean: 0.08, bob: Math.sin(p) * 0.04, headYaw: 0,
     };
 
     const t = {};
@@ -249,6 +249,37 @@ class ExplorerAnimator {
     r.body.position.y = 0.95 + bob;
 
     r.lean.rotation.z = 0;
+    this.crawl = damp(this.crawl || 0, s.swimming && s.speed > 0.6 ? 1 : 0, 3.5, dt);
+    const c = this.crawl;
+    r.lean.rotation.x = c * 1.42;
+    r.lean.position.set(0, c * 0.95, -c * 0.8);
+    if (c > 0.01) {
+      const stroke = (object, target) => {
+        object.rotation.x = wrapAngle(object.rotation.x + wrapAngle(target - object.rotation.x) * c);
+      };
+      const thetaL = Math.PI + p;
+      const thetaR = p;
+      stroke(r.shoulderL, thetaL);
+      stroke(r.shoulderR, thetaR);
+      r.shoulderL.rotation.z = lerp(r.shoulderL.rotation.z, 0.12, c);
+      r.shoulderR.rotation.z = lerp(r.shoulderR.rotation.z, -0.12, c);
+      r.elbowL.rotation.x = lerp(r.elbowL.rotation.x, -0.1 - 1.3 * Math.max(0, Math.sin(thetaL)), c);
+      r.elbowR.rotation.x = lerp(r.elbowR.rotation.x, -0.1 - 1.3 * Math.max(0, Math.sin(thetaR)), c);
+      const kick = Math.sin(p * 3);
+      r.hipL.rotation.x = lerp(r.hipL.rotation.x, kick * 0.32, c);
+      r.hipR.rotation.x = lerp(r.hipR.rotation.x, -kick * 0.32, c);
+      r.kneeL.rotation.x = lerp(r.kneeL.rotation.x, 0.15 + Math.max(0, -kick) * 0.3, c);
+      r.kneeR.rotation.x = lerp(r.kneeR.rotation.x, 0.15 + Math.max(0, kick) * 0.3, c);
+      r.ankleL.rotation.x = lerp(r.ankleL.rotation.x, 1.1, c);
+      r.ankleR.rotation.x = lerp(r.ankleR.rotation.x, 1.1, c);
+      r.torso.rotation.x *= 1 - c;
+      r.torso.rotation.y = lerp(r.torso.rotation.y, Math.sin(p) * 0.45, c);
+      r.body.rotation.y = lerp(r.body.rotation.y, Math.sin(p) * 0.2, c);
+      const breathe = Math.sin(p) > 0.55 ? 0.9 : 0;
+      r.head.rotation.x = lerp(r.head.rotation.x, -0.55, c);
+      r.head.rotation.y = lerp(r.head.rotation.y, breathe, c * 0.9);
+      r.body.position.y = lerp(r.body.position.y, 0.95, c);
+    }
 
     this.pack.update(clamp(-this.bob.velocity * 0.35 + run * 0.08, -0.3, 0.35), dt, 2.8, 0.28);
     r.pack.rotation.x = this.pack.value;

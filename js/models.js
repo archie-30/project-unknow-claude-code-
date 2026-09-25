@@ -10,7 +10,7 @@ const PAPER = {
   birchBark: 0xf0ece2,
   cream: 0xf3ead8,
   stone: 0xbdb8ae,
-  snow: 0xf7f6f2,
+  snow: 0xdfe1df,
 };
 
 const Models = (() => {
@@ -22,11 +22,26 @@ const Models = (() => {
   const tmpPos = new THREE.Vector3();
   const ONE = new THREE.Vector3(1, 1, 1);
 
-  function part(geometry, color, swayFn = null, shadeFn = null) {
+  const tmpN = new THREE.Vector3();
+  const UP_NORMAL = (x, y, z, out) => out.set(0, 1, 0);
+
+  function part(geometry, color, swayFn = null, shadeFn = null, normalFn = null, normalBlend = 0.8) {
     const g = geometry.index ? geometry.toNonIndexed() : geometry;
     if (g.attributes.uv) g.deleteAttribute('uv');
     g.computeVertexNormals();
     const position = g.attributes.position;
+    if (normalFn) {
+      const normal = g.attributes.normal;
+      for (let i = 0; i < position.count; i++) {
+        normalFn(position.getX(i), position.getY(i), position.getZ(i), tmpN);
+        tmpN.normalize().multiplyScalar(normalBlend);
+        tmpN.x += normal.getX(i) * (1 - normalBlend);
+        tmpN.y += normal.getY(i) * (1 - normalBlend);
+        tmpN.z += normal.getZ(i) * (1 - normalBlend);
+        tmpN.normalize();
+        normal.setXYZ(i, tmpN.x, tmpN.y, tmpN.z);
+      }
+    }
     const base = new THREE.Color(color);
     const colors = new Float32Array(position.count * 3);
     const sway = new Float32Array(position.count);
@@ -93,10 +108,11 @@ const Models = (() => {
     } = options;
     const rng = mulberry32(seed);
     const golden = Math.PI * (3 - Math.sqrt(5));
+    const radial = (x, y, z, out) => out.set(x - center.x, (y - center.y) / Math.max(squash, 0.3) + radius * 0.35, z - center.z);
     if (core) {
       parts.push(part(
-        new THREE.IcosahedronGeometry(radius * 0.72, 0).scale(1, squash, 1).translate(center.x, center.y, center.z),
-        coreColor, swayFn, (x, y) => 0.8 + 0.2 * clamp01((y - center.y) / radius + 0.5)
+        new THREE.IcosahedronGeometry(radius * 0.72, 1).scale(1, squash, 1).translate(center.x, center.y, center.z),
+        coreColor, swayFn, (x, y) => 0.8 + 0.2 * clamp01((y - center.y) / radius + 0.5), radial, 0.9
       ));
     }
     for (let i = 0; i < count; i++) {
@@ -112,7 +128,8 @@ const Models = (() => {
       const leafSize = size * (0.8 + rng() * 0.45);
       const geometry = orient(leafGeometry(leafSize, leafSize * width * 1.6, leafSize * 0.14), tmpPos, tmpDir, rng() * Math.PI * 2);
       const color = colors[Math.floor(rng() * colors.length)];
-      parts.push(part(geometry, color, swayFn, () => light * (0.94 + rng() * 0.1)));
+      const tint = light * (0.94 + rng() * 0.1);
+      parts.push(part(geometry, color, swayFn, () => tint, radial, 0.85));
     }
   }
 
@@ -154,8 +171,9 @@ const Models = (() => {
     const tiers = [[1.45, 1.8, 1.05], [1.15, 1.6, 1.85], [0.85, 1.45, 2.6], [0.5, 1.2, 3.35]];
     tiers.forEach(([r, h, y], i) => {
       const color = PAPER.pine[Math.min(i, PAPER.pine.length - 1)];
-      parts.push(part(fringeCone(r, h, 14, 20 + i).rotateY(i * 0.4).translate(0, y, 0), color, canopySway, (x, py) => 0.72 + 0.28 * clamp01((py - y) / h + 0.15)));
-      if (snowy) parts.push(part(fringeCone(r * 0.62, h * 0.42, 12, 40 + i).rotateY(i * 0.4).translate(0, y + h * 0.58, 0), PAPER.snow, canopySway));
+      const coneNormal = (x, py, z, out) => out.set(x, r * 0.55, z);
+      parts.push(part(fringeCone(r, h, 18, 20 + i).rotateY(i * 0.4).translate(0, y, 0), color, canopySway, (x, py) => 0.72 + 0.28 * clamp01((py - y) / h + 0.15), coneNormal, 0.75));
+      if (snowy) parts.push(part(fringeCone(r * 0.62, h * 0.42, 14, 40 + i).rotateY(i * 0.4).translate(0, y + h * 0.58, 0), PAPER.snow, canopySway, null, coneNormal, 0.75));
     });
     return merge(parts);
   }
@@ -242,7 +260,7 @@ const Models = (() => {
       const h = height * (0.7 + rng() * 0.5);
       const dir = new THREE.Vector3((rng() - 0.5) * 0.5, 1, (rng() - 0.5) * 0.5).normalize();
       const blade = orient(leafGeometry(h, 0.05, 0.02), new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r), dir, rng() * Math.PI);
-      parts.push(part(blade, colors[i % colors.length], tipSway(height), (x, y) => 0.75 + 0.25 * clamp01(y / height)));
+      parts.push(part(blade, colors[i % colors.length], tipSway(height), (x, y) => 0.75 + 0.25 * clamp01(y / height), UP_NORMAL, 0.85));
     }
     return merge(parts);
   }
@@ -252,7 +270,7 @@ const Models = (() => {
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
       const dir = new THREE.Vector3(Math.cos(a), 0.75, Math.sin(a)).normalize();
-      parts.push(part(orient(leafGeometry(0.95, 0.16, 0.05), new THREE.Vector3(0, 0.05, 0), dir, 0), i % 2 ? 0x5d8a4c : 0x6c9a58, tipSway(0.8)));
+      parts.push(part(orient(leafGeometry(0.95, 0.16, 0.05), new THREE.Vector3(0, 0.05, 0), dir, 0), i % 2 ? 0x5d8a4c : 0x6c9a58, tipSway(0.8), (x, y) => 0.8 + 0.2 * clamp01(y / 0.6), UP_NORMAL, 0.7));
     }
     return merge(parts);
   }
@@ -308,8 +326,9 @@ const Models = (() => {
 
   function rock(snowy) {
     const shade = (x, y) => 0.78 + 0.22 * clamp01(y * 0.5 + 0.5);
-    const parts = [part(jitterVertices(new THREE.DodecahedronGeometry(1, 0), 1234, 0.75, 1.2), PAPER.stone, null, shade)];
-    if (snowy) parts.push(part(jitterVertices(ico(0.8), 55, 0.85, 1.1).scale(1, 0.35, 1).translate(0, 0.72, 0), PAPER.snow));
+    const round = (x, y, z, out) => out.set(x, y + 0.3, z);
+    const parts = [part(jitterVertices(new THREE.DodecahedronGeometry(1, 1), 1234, 0.82, 1.12), PAPER.stone, null, shade, round, 0.7)];
+    if (snowy) parts.push(part(jitterVertices(new THREE.IcosahedronGeometry(0.8, 1), 55, 0.88, 1.08).scale(1, 0.35, 1).translate(0, 0.72, 0), PAPER.snow, null, null, round, 0.7));
     return merge(parts);
   }
 

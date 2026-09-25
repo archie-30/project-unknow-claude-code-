@@ -751,3 +751,307 @@ body::after {
 #journal:not(.open) .sketch * {
   animation-play-state: paused !important;
 }
+.sketch .sk-wave { animation: sk-wave 3s ease-in-out infinite; }
+.sketch .sk-foam { animation: sk-foam 3.2s ease-in-out infinite; }
+@keyframes sk-wave { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-10px); } }
+@keyframes sk-foam { 0%, 100% { transform: translateY(0); opacity: 0.9; } 50% { transform: translateY(-3px); opacity: 0.5; } }
+
+kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1.5px solid currentColor;
+  border-bottom-width: 3px;
+  border-radius: 5px;
+  font: 600 11px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  text-align: center;
+  opacity: 0.75;
+  vertical-align: middle;
+}
+
+.menu-button kbd {
+  float: right;
+  margin-top: 3px;
+}
+
+.menu-button.pressed {
+  animation: pressed 0.25s ease;
+}
+
+@keyframes pressed {
+  50% { transform: scale(0.96); }
+}
+
+.pause-key {
+  position: absolute;
+  left: -10px;
+  bottom: -8px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--wood-dark);
+  color: #fbe9c6;
+  font: 600 10px/1.5 system-ui, sans-serif;
+}
+
+.journal-tab kbd {
+  margin-left: 8px;
+  font-size: 10px;
+}
+
+.scroll-paper footer kbd {
+  margin: 0 2px;
+}
+
+#journal.open .scroll-paper {
+  height: min(78vh, 720px);
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.journal-pages {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 2px 8px;
+}
+
+.journal-page.active {
+  animation: none;
+}
+
+.journal-page.leaving {
+  position: absolute;
+  inset: 4px 2px auto;
+  pointer-events: none;
+}
+
+.journal-page.enter-right { animation: page-enter-right 0.45s cubic-bezier(0.25, 0.8, 0.3, 1) both; }
+.journal-page.enter-left { animation: page-enter-left 0.45s cubic-bezier(0.25, 0.8, 0.3, 1) both; }
+.journal-page.leave-left { animation: page-leave-left 0.4s ease both; }
+.journal-page.leave-right { animation: page-leave-right 0.4s ease both; }
+
+@keyframes page-enter-right {
+  from { opacity: 0; transform: perspective(1000px) translateX(60px) rotateY(-14deg); transform-origin: left center; }
+  to { opacity: 1; transform: none; }
+}
+@keyframes page-enter-left {
+  from { opacity: 0; transform: perspective(1000px) translateX(-60px) rotateY(14deg); transform-origin: right center; }
+  to { opacity: 1; transform: none; }
+}
+@keyframes page-leave-left {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: perspective(1000px) translateX(-50px) rotateY(10deg); }
+}
+@keyframes page-leave-right {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: perspective(1000px) translateX(50px) rotateY(-10deg); }
+}
+
+.sketch-frame {
+  position: relative;
+}
+
+.sketch-ink .sketch,
+.biome-card.found .sketch-ink .sketch {
+  filter: grayscale(1) sepia(0.9) saturate(1.2) brightness(1.08) contrast(0.85) !important;
+  opacity: 0.85 !important;
+  animation: none !important;
+}
+
+.sketch-ink .sketch * {
+  animation-play-state: paused !important;
+}
+
+.sketch-color {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: linear-gradient(100deg, #000 42%, rgba(0, 0, 0, 0.55) 48%, rgba(0, 0, 0, 0.2) 52%, transparent 58%);
+  mask-image: linear-gradient(100deg, #000 42%, rgba(0, 0, 0, 0.55) 48%, rgba(0, 0, 0, 0.2) 52%, transparent 58%);
+  -webkit-mask-size: 320% 100%;
+  mask-size: 320% 100%;
+  -webkit-mask-position: 100% 0;
+  mask-position: 100% 0;
+}
+
+.sketch-color .sketch {
+  filter: none !important;
+  opacity: 1 !important;
+  animation: none !important;
+}
+
+.biome-card.found:not(.pending) .sketch-color {
+  -webkit-mask-position: 0% 0;
+  mask-position: 0% 0;
+}
+
+.biome-card:not(.found) .sketch-color .sketch *,
+.biome-card.pending .sketch-color .sketch * {
+  animation-play-state: paused !important;
+}
+
+.biome-card.unlocking .sketch-color {
+  animation: ink-wipe 2.2s cubic-bezier(0.45, 0.05, 0.3, 1) both;
+}
+
+.biome-card.unlocking .sketch-frame {
+  animation: reveal-glow 2.4s ease;
+}
+
+.card-new,
+.card-stamp {
+  display: none !important;
+}
+
+@keyframes ink-wipe {
+  from { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+  to { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
+}
+
+@keyframes reveal-glow {
+  0% { filter: drop-shadow(0 0 0 rgba(255, 205, 100, 0)); transform: scale(1); }
+  45% { filter: drop-shadow(0 0 12px rgba(255, 205, 100, 0.9)); transform: scale(1.03); }
+  100% { filter: drop-shadow(0 0 0 rgba(255, 205, 100, 0)); transform: scale(1); }
+}
+
+#biome-label {
+  position: fixed;
+  left: 14px;
+  top: 14px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 128px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 4px 14px 14px 4px;
+  background:
+    radial-gradient(ellipse at 20% 10%, rgba(255, 255, 255, 0.4), transparent 60%),
+    linear-gradient(90deg, var(--paper-dark), var(--paper) 30%);
+  border: 2px solid rgba(91, 58, 30, 0.55);
+  box-shadow: 0 3px 10px rgba(60, 40, 20, 0.25);
+  color: var(--ink);
+  font-family: var(--hand);
+  pointer-events: none;
+  user-select: none;
+}
+
+#biome-label:empty {
+  display: none;
+}
+
+#biome-label::after {
+  content: "";
+  position: absolute;
+  left: 38px;
+  right: 16px;
+  bottom: 5px;
+  height: 2px;
+  background: var(--ink);
+  opacity: 0.55;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+#biome-label.changed::after,
+#biome-label.discovered::after {
+  animation: ink-line 1.4s ease forwards;
+}
+
+#biome-label.discovered {
+  animation: label-glow 2.4s ease;
+}
+
+.biome-pin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50% 50% 50% 0;
+  background: #c8583f;
+  border: 2px solid var(--ink);
+  transform: rotate(-45deg);
+  flex: none;
+}
+
+.biome-names {
+  position: relative;
+  display: inline-block;
+  height: 1.5em;
+  min-width: 4.5em;
+  overflow: hidden;
+  font-size: 20px;
+  letter-spacing: 0.2em;
+  line-height: 1.5em;
+}
+
+.biome-name {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  transition: transform 0.6s cubic-bezier(0.3, 0.8, 0.3, 1), opacity 0.6s ease;
+}
+
+.biome-name.entering {
+  transform: translateY(110%);
+  opacity: 0;
+}
+
+.biome-name.current {
+  transform: none;
+  opacity: 1;
+}
+
+.biome-name.leaving {
+  transform: translateY(-110%);
+  opacity: 0;
+}
+
+.biome-new {
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: #e0533d;
+  color: #fff;
+  font: 700 11px/1.4 system-ui, sans-serif;
+  font-style: normal;
+  animation: new-pop 0.9s ease infinite alternate;
+}
+
+.biome-new[hidden],
+.run-tag[hidden] {
+  display: none;
+}
+
+.run-tag {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(91, 58, 30, 0.12);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+}
+
+@keyframes ink-line {
+  0% { transform: scaleX(0); opacity: 0.8; }
+  60% { transform: scaleX(1); opacity: 0.8; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+@keyframes label-glow {
+  0% { box-shadow: 0 3px 10px rgba(60, 40, 20, 0.25); transform: scale(1); }
+  30% { box-shadow: 0 0 0 4px rgba(255, 210, 110, 0.6), 0 0 26px rgba(255, 200, 90, 0.8); transform: scale(1.05); }
+  100% { box-shadow: 0 3px 10px rgba(60, 40, 20, 0.25); transform: scale(1); }
+}
+
+#biome-label:not(.changed):not(.discovered) {
+  opacity: 0;
+}
+
+.journal-page.enter-right,
+.journal-page.enter-left,
+.journal-page.leave-left,
+.journal-page.leave-right {
+  will-change: transform, opacity;
+}

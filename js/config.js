@@ -1,4 +1,4 @@
-const GAME_VERSION = 'v1.0.01';
+const GAME_VERSION = 'v2.1.00';
 
 const CONFIG = {
   chunkSize: 48,
@@ -62,7 +62,7 @@ const CONFIG = {
 const SUN_DIRECTION = new THREE.Vector3(0.55, 0.72, 0.4).normalize();
 const UP = new THREE.Vector3(0, 1, 0);
 
-const BIOME = { MEADOW: 0, FOREST: 1, TAIGA: 2, SNOW: 3, SAVANNA: 4, DESERT: 5 };
+const BIOME = { MEADOW: 0, FOREST: 1, TAIGA: 2, SNOW: 3, SAVANNA: 4, DESERT: 5, OCEAN: 6 };
 
 const BIOME_INFO = [
   { id: BIOME.MEADOW, name: '草原', text: '微風吹過花海，蝴蝶在陽光下追逐。' },
@@ -71,6 +71,7 @@ const BIOME_INFO = [
   { id: BIOME.SNOW, name: '雪原', text: '白雪覆蓋的山頂與雪松，只有風聲作伴。' },
   { id: BIOME.SAVANNA, name: '莽原', text: '乾黃長草與傘狀金合歡，鳥群在遠方盤旋。' },
   { id: BIOME.DESERT, name: '沙漠', text: '起伏沙丘與仙人掌，熱浪讓地平線晃動。' },
+  { id: BIOME.OCEAN, name: '大海', text: '一望無際的藍，浪花輕輕拍打著沙灘。' },
 ];
 
 const LANDMARK = { PLANE: 0, CABIN: 1 };

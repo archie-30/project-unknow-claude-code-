@@ -66,6 +66,44 @@ class Hud {
     this.banner = document.getElementById('biome-banner');
     this.queue = [];
     this.busy = false;
+    this.biomeLabel = document.getElementById('biome-label');
+    this.biomeLabel.innerHTML = `
+      <span class="biome-pin"></span>
+      <span class="biome-names"><span class="biome-name current"></span></span>
+      <em class="biome-new" hidden>NEW</em>
+      <span class="run-tag" hidden>跑步</span>`;
+    this.biomeNames = this.biomeLabel.querySelector('.biome-names');
+    this.biomeNew = this.biomeLabel.querySelector('.biome-new');
+    this.runTag = this.biomeLabel.querySelector('.run-tag');
+  }
+
+  setBiome(info, isNew) {
+    const old = this.biomeNames.querySelector('.biome-name.current');
+    const fresh = document.createElement('span');
+    fresh.className = 'biome-name entering';
+    fresh.textContent = info.name;
+    this.biomeNames.appendChild(fresh);
+    if (old && old.textContent) {
+      old.classList.remove('current');
+      old.classList.add('leaving');
+      setTimeout(() => old.remove(), 700);
+    } else if (old) {
+      old.remove();
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      fresh.classList.remove('entering');
+      fresh.classList.add('current');
+    }));
+    this.biomeLabel.classList.remove('changed', 'discovered');
+    void this.biomeLabel.offsetWidth;
+    this.biomeLabel.classList.add(isNew ? 'discovered' : 'changed');
+    this.biomeNew.hidden = !isNew;
+    clearTimeout(this.newTimer);
+    if (isNew) this.newTimer = setTimeout(() => { this.biomeNew.hidden = true; }, 6000);
+  }
+
+  setRunning(running) {
+    this.runTag.hidden = !running;
   }
 
   show(sub, name, isNew) {
@@ -116,21 +154,23 @@ class Journal {
           <p class="journal-progress"></p>
         </header>
         <nav class="journal-tabs">
-          ${JOURNAL_PAGES.map((p, i) => `<button type="button" class="journal-tab" data-page="${i}">${p.title}<span class="tab-dot" hidden></span></button>`).join('')}
+          ${JOURNAL_PAGES.map((p, i) => `<button type="button" class="journal-tab" data-page="${i}">${p.title}<kbd>${i + 1}</kbd><span class="tab-dot" hidden></span></button>`).join('')}
         </nav>
+        <div class="journal-pages">
         ${JOURNAL_PAGES.map((p, i) => `
           <section class="journal-page" data-page="${i}">
             <div class="biome-grid">
               ${p.infos.map((info) => `
                 <article class="biome-card" data-cat="${p.key}" data-id="${info.id}">
-                  <div class="sketch-frame">${p.sketches()[info.id]}<em class="card-new">NEW</em><span class="card-stamp">發現！</span></div>
+                  <div class="sketch-frame"><div class="sketch-ink">${p.sketches()[info.id]}</div><div class="sketch-color">${p.sketches()[info.id]}</div></div>
                   <h4 data-name="${info.name}">${p.hideName ? '？？？' : info.name}</h4>
                   <p class="card-text">${info.text}</p>
                   <p class="card-locked">${p.locked}</p>
                 </article>`).join('')}
             </div>
           </section>`).join('')}
-        <footer>Tab 收起 · ← → 或點書籤切換頁面</footer>
+        </div>
+        <footer><kbd>Tab</kbd> 收起 · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 或 <kbd>←</kbd><kbd>→</kbd> 換頁</footer>
       </div>
       <div class="scroll-rod bottom"><span></span></div>`;
     this.tabs = [...this.panel.querySelectorAll('.journal-tab')];
@@ -172,12 +212,40 @@ class Journal {
   }
 
   showPage(index, silent = false) {
+    const previous = this.page;
     this.page = (index + JOURNAL_PAGES.length) % JOURNAL_PAGES.length;
+    const direction = this.page >= previous ? 1 : -1;
     this.tabs.forEach((tab, i) => tab.classList.toggle('active', i === this.page));
-    this.pages.forEach((page, i) => page.classList.toggle('active', i === this.page));
+    this.pages.forEach((page, i) => {
+      page.classList.remove('enter-left', 'enter-right', 'leave-left', 'leave-right');
+      if (i === this.page) {
+        page.classList.add('active');
+        if (!silent && previous !== this.page) page.classList.add(direction > 0 ? 'enter-right' : 'enter-left');
+      } else if (i === previous && !silent && previous !== this.page) {
+        page.classList.add('leaving', direction > 0 ? 'leave-left' : 'leave-right');
+        clearTimeout(page.leaveTimer);
+        page.leaveTimer = setTimeout(() => page.classList.remove('active', 'leaving', 'leave-left', 'leave-right'), 450);
+      } else {
+        page.classList.remove('active', 'leaving');
+      }
+    });
     this.refresh();
     if (!silent && this.audio) this.audio.rustle();
-    if (this.isOpen) this.scheduleReveal(360);
+    if (this.isOpen) this.scheduleReveal(silent ? 800 : 500);
+  }
+
+  handleKey(e) {
+    if (!this.isOpen) return false;
+    const digit = { Digit1: 0, Digit2: 1, Digit3: 2, Numpad1: 0, Numpad2: 1, Numpad3: 2 }[e.code];
+    if (digit !== undefined) {
+      if (digit !== this.page) this.showPage(digit);
+      return true;
+    }
+    if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+      this.showPage(this.page + (e.code === 'ArrowRight' ? 1 : -1));
+      return true;
+    }
+    return false;
   }
 
   scheduleReveal(delay) {
@@ -196,10 +264,10 @@ class Journal {
     this.store.markSeen(cat, id);
     this.fresh.add(card);
     card.classList.remove('pending');
-    card.classList.add('unlocking', 'fresh');
+    card.classList.add('unlocking');
     card.querySelector('h4').textContent = card.querySelector('h4').dataset.name;
     if (this.audio) this.audio.chime();
-    setTimeout(() => card.classList.remove('unlocking'), 2400);
+    setTimeout(() => card.classList.remove('unlocking'), 2600);
     this.refresh();
   }
 

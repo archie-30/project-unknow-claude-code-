@@ -119,7 +119,7 @@ class CameraRig {
   }
 
   floorAt(x, z) {
-    return Math.max(Terrain.heightAt(x, z), CONFIG.waterLevel) + CONFIG.camClearance;
+    return Math.max(Terrain.heightAt(x, z) + CONFIG.camClearance, CONFIG.waterLevel + 0.25);
   }
 
   autoFollow(dt, velocity) {
@@ -136,7 +136,8 @@ class CameraRig {
     if (this.manualIdle > CONFIG.autoCameraDelay + 1.5) this.pitch = damp(this.pitch, CONFIG.autoCameraPitch, 0.5, dt);
   }
 
-  update(dt, target, velocity, bob = 0) {
+  update(dt, target, velocity, bob = 0, swimming = false) {
+    this.focusHeight = damp(this.focusHeight || CONFIG.camFocusHeight, swimming ? 1.95 : CONFIG.camFocusHeight, 3, dt);
     this.autoFollow(dt, velocity);
     const step = dt / CONFIG.viewTransitionTime;
     this.view = this.viewTarget > this.view ? Math.min(this.viewTarget, this.view + step) : Math.max(this.viewTarget, this.view - step);
@@ -144,7 +145,7 @@ class CameraRig {
 
     this.focus.x = damp(this.focus.x, target.x, 14, dt);
     this.focus.z = damp(this.focus.z, target.z, 14, dt);
-    this.focus.y = damp(this.focus.y, target.y + CONFIG.camFocusHeight, 8, dt);
+    this.focus.y = damp(this.focus.y, target.y + this.focusHeight, 8, dt);
 
     const cosPitch = Math.cos(this.pitch);
     this.direction.set(Math.sin(this.yaw) * cosPitch, Math.sin(this.pitch), Math.cos(this.yaw) * cosPitch);

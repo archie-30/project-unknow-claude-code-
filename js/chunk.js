@@ -90,54 +90,50 @@ class Chunk {
   buildTerrain(material) {
     const seg = CONFIG.chunkSegments;
     const cell = Terrain.cell;
-    const positions = new Float32Array(seg * seg * 18);
-    const colors = new Float32Array(seg * seg * 18);
+    const stride = seg + 1;
+    const count = stride * stride;
+    const positions = new Float32Array(count * 3);
+    const normals = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
     const color = new THREE.Color();
-    let offset = 0;
-
-    const addTriangle = (a, b, q) => {
-      const [ai, aj] = a;
-      const [bi, bj] = b;
-      const [qi, qj] = q;
-      const ax = ai * cell, az = aj * cell, ay = this.gridHeight(ai, aj);
-      const bx = bi * cell, bz = bj * cell, by = this.gridHeight(bi, bj);
-      const qx = qi * cell, qz = qj * cell, qy = this.gridHeight(qi, qj);
-      const ux = bx - ax, uy = by - ay, uz = bz - az;
-      const vx = qx - ax, vy = qy - ay, vz = qz - az;
-      const nx = uy * vz - uz * vy;
-      const ny = uz * vx - ux * vz;
-      const nz = ux * vy - uy * vx;
-      Terrain.colorAt(
-        this.originX + (ax + bx + qx) / 3,
-        this.originZ + (az + bz + qz) / 3,
-        (ay + by + qy) / 3,
-        ny / Math.hypot(nx, ny, nz),
-        color
-      );
-      const bend = (this.curvature(ai, aj) + this.curvature(bi, bj) + this.curvature(qi, qj)) / 3;
-      const shade = 1 + clamp(bend * 0.12, -0.14, 0.1);
-      positions[offset] = ax; positions[offset + 1] = ay; positions[offset + 2] = az;
-      positions[offset + 3] = bx; positions[offset + 4] = by; positions[offset + 5] = bz;
-      positions[offset + 6] = qx; positions[offset + 7] = qy; positions[offset + 8] = qz;
-      for (let k = 0; k < 3; k++) {
-        colors[offset + k * 3] = color.r * shade;
-        colors[offset + k * 3 + 1] = color.g * shade;
-        colors[offset + k * 3 + 2] = color.b * shade;
-      }
-      offset += 9;
-    };
-
-    for (let j = 0; j < seg; j++) {
-      for (let i = 0; i < seg; i++) {
-        addTriangle([i, j], [i + 1, j + 1], [i + 1, j]);
-        addTriangle([i, j], [i, j + 1], [i + 1, j + 1]);
+    for (let j = 0; j <= seg; j++) {
+      for (let i = 0; i <= seg; i++) {
+        const k = j * stride + i;
+        const h = this.gridHeight(i, j);
+        const nx = this.gridHeight(i - 1, j) - this.gridHeight(i + 1, j);
+        const nz = this.gridHeight(i, j - 1) - this.gridHeight(i, j + 1);
+        const ny = 2 * cell;
+        const len = Math.hypot(nx, ny, nz);
+        positions[k * 3] = i * cell;
+        positions[k * 3 + 1] = h;
+        positions[k * 3 + 2] = j * cell;
+        normals[k * 3] = nx / len;
+        normals[k * 3 + 1] = ny / len;
+        normals[k * 3 + 2] = nz / len;
+        Terrain.colorAt(this.originX + i * cell, this.originZ + j * cell, h, ny / len, color);
+        const shade = 1 + clamp(this.curvature(i, j) * 0.1, -0.12, 0.08);
+        colors[k * 3] = color.r * shade;
+        colors[k * 3 + 1] = color.g * shade;
+        colors[k * 3 + 2] = color.b * shade;
       }
     }
-
+    const indices = new Uint32Array(seg * seg * 6);
+    let o = 0;
+    for (let j = 0; j < seg; j++) {
+      for (let i = 0; i < seg; i++) {
+        const a = j * stride + i;
+        const b = a + 1;
+        const c = a + stride;
+        const d = c + 1;
+        indices[o++] = a; indices[o++] = d; indices[o++] = b;
+        indices[o++] = a; indices[o++] = c; indices[o++] = d;
+      }
+    }
     const geometry = new THREE.BufferGeometry();
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.computeVertexNormals();
     const mesh = new THREE.Mesh(geometry, material);
     mesh.receiveShadow = true;
     return mesh;

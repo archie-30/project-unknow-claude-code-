@@ -23,7 +23,7 @@
 ```
 index.html                 頁面骨架：生態域橫幅、版本號、捲軸按鈕、暫停按鈕、捲軸與選單容器、script 載入順序
 css/style.css              所有 UI 樣式、紙張紋理疊加、捲軸／選單、簡圖動畫 keyframes
-js/config.js               GAME_VERSION、CONFIG、BIOME／LANDMARK／SPECIES 與各自的名稱描述
+js/config.js               GAME_VERSION、CONFIG、BIOME（含 OCEAN）／LANDMARK／SPECIES 與各自的名稱描述
 js/utils.js                mulberry32、hash2、smoothstep、clamp、lerp、damp、wrapAngle、Spring、WORLD_SEED
 js/terrain.js              Terrain：高度函數、三角形內插、生態域判定、地面顏色（紙藝配色）
 js/materials.js            shaderTime／shaderWind／shaderPlayer、柔和 gradientMap、addWind（搖擺＋被角色推開）、addWaves
@@ -58,10 +58,11 @@ js/main.js                 建立所有系統、暫停／繼續、發現判定�
 | 開始畫面「開始探險」／點擊畫面 | 鎖定並隱藏滑鼠，移動滑鼠轉視角 |
 | Esc ／ 右上角暫停鈕 | 暫停選單（設定、操作說明、重置紀錄） |
 | WASD | 移動 |
-| 按住 E | 跑步（刻意不用 Shift） |
+| E（按一次） | 切換跑步；放開所有方向鍵後自動回到走路（刻意不用 Shift） |
 | 空白鍵 | 跳躍 |
 | 1 ／ 3 | 第一人稱 ／ 第三人稱 |
-| Tab ／ 左下捲軸圖示 | 探險筆記；← → 或點書籤切換分頁 |
+| Tab ／ 左下捲軸圖示 | 探險筆記；1／2／3、← → 或點書籤切換分頁 |
+| 選單內 | Enter 開始、S 設定、H 說明、B 返回、M 靜音、C 自動鏡頭、Q 畫質、R 重置圖鑑、D 預設設定 |
 | 滾輪 ／ 雙指捏合 | 鏡頭距離 |
 | 觸控或未鎖定時按住拖曳 | 轉視角 |
 | 網址加 `?seed=數字` | 固定世界種子 |
@@ -126,6 +127,14 @@ js/main.js                 建立所有系統、暫停／繼續、發現判定�
 - **新生態域**：`BIOME`、`BIOME_INFO`（config）→ `Terrain.biomeAt` 條件與 `groundPalette` → `BIOME_DECOR`、`GROUND_COVER` → `BIOME_SKETCHES` 加簡圖
 - **新植物／物件**：`Models` 加幾何體 → `createDecorAssets` 註冊 → `DECOR_TYPES` 定義 → 加進生態域機率表
 - **發版**：改 `GAME_VERSION`、`index.html` 的 `?v=`、`CHANGELOG.md`
+
+## v2.1.00 補充
+
+- 地形：`Chunk.buildTerrain` 改為索引網格＋頂點法線（中央差分）＋頂點色，不再是每面獨立顏色
+- `Models.part(geometry, color, sway, shade, normalFn, blend)`：`normalFn` 可自訂法線（葉團徑向、草朝上、石頭圓潤）
+- 大海：`Terrain.oceanMask` 低頻遮罩 → `sampleHeight` 在海岸收斂成緩坡、外海降到約 −24m；`biomeAt` 在水面附近且遮罩 > 0.45 時回傳 `BIOME.OCEAN`
+- 游泳：`ExplorerAnimator` 的 `crawl` 權重把 `lean` 樞紐轉成趴姿並覆寫手臂（連續旋轉）、腿、頭部；`CameraRig.update(..., swimming)` 會抬高焦點
+- 介面：`Hud.setBiome` 更新左上角標籤；`Journal` 每張卡片有 `.sketch-ink`（墨線）與 `.sketch-color`（彩色）兩層，解鎖時用 CSS mask 由左往右暈染；`PauseMenu.handleKey` 依 `data-key` 對應快捷鍵
 
 ## 效能重點
 

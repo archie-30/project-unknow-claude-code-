@@ -109,6 +109,9 @@ input.onEscape = () => {
 input.onToggleJournal = () => { if (!paused) journal.toggle(); };
 input.onView = (first) => { if (!paused) cameraRig.setView(first); };
 input.onPage = (direction) => journal.step(direction);
+input.onMenuKey = (e) => menu.handleKey(e);
+input.onJournalKey = (e) => !paused && journal.handleKey(e);
+input.onRunChange = (running) => hud.setRunning(running);
 document.getElementById('pause-button').addEventListener('click', (e) => {
   e.stopPropagation();
   pause();
@@ -158,7 +161,12 @@ function updateBiome(dt) {
   if (biomeTracker.current === null || biomeTracker.candidateTime >= CONFIG.biomeStableTime) {
     biomeTracker.current = biome;
     biomeTracker.candidate = null;
-    if (!discover('biome', biome)) hud.show('進入生態域', BIOME_INFO[biome].name, false);
+    const isNew = discoveries.add('biome', biome);
+    hud.setBiome(BIOME_INFO[biome], isNew);
+    if (isNew) {
+      journal.notify();
+      audio.chime([784, 988, 1175]);
+    }
   }
 }
 
@@ -337,7 +345,7 @@ function frame() {
   else if (!env.skyTop.getHex()) env = timeOfDay.update(0, weather);
   const bob = cameraRig.firstPerson ? Math.sin(player.animator.phase * 2) * 0.035 * player.animator.gait + (player.rig.body.position.y - 0.95) : 0;
   cameraTarget.copy(player.renderPosition);
-  cameraRig.update(paused ? 0 : dt, cameraTarget, paused ? UP.clone().multiplyScalar(0) : player.velocity, bob);
+  cameraRig.update(paused ? 0 : dt, cameraTarget, paused ? UP.clone().multiplyScalar(0) : player.velocity, bob, player.swimming);
   applyEnvironment(env);
   shafts.update(paused ? 0 : dt, player.renderPosition, camera, env, forestAmount);
   sky.group.position.copy(camera.position);
