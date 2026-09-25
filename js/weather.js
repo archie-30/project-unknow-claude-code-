@@ -108,6 +108,8 @@ class Weather {
     this.snow += ((cold ? this.precip : 0) - this.snow) * blend;
     this.dust += ((dry ? Math.max(this.precip, smoothstep(1.8, 2.6, this.wind)) : 0) - this.dust) * blend;
 
+    const blizzardTarget = biome === BIOME.SNOW ? Math.max(this.precip, smoothstep(1.6, 2.4, this.wind)) : 0;
+    this.blizzard = (this.blizzard || 0) + (blizzardTarget - (this.blizzard || 0)) * (1 - Math.exp(-dt / 4));
     this.lastRainPeak = Math.max(this.lastRainPeak * Math.exp(-dt / 60), this.rain);
     if (this.state !== 'rain' && this.lastRainPeak > 0.6 && this.rain < 0.15 && env && env.daylight > 0.7 && this.rainbowTimer <= 0) {
       this.rainbowTimer = 70;
@@ -118,7 +120,8 @@ class Weather {
     this.rainbow = this.rainbowTimer > 0 ? Math.min(1, (70 - this.rainbowTimer) / 8, this.rainbowTimer / 12) : 0;
 
     this.updateRain(dt, cameraPosition);
-    this.updateField(this.snowField, this.snow, dt, cameraPosition, (s, t) => [s[0] + Math.sin(t * 0.7 + s[1]) * 0.8 + t * this.wind * 0.6, s[1] - t * 1.6, s[2] + Math.cos(t * 0.5 + s[0]) * 0.8]);
+    const gale = this.blizzard;
+    this.updateField(this.snowField, Math.max(this.snow, gale), dt, cameraPosition, (s, t) => [s[0] + Math.sin(t * 0.7 + s[1]) * 0.8 * (1 - gale) + t * (this.wind * 0.6 + gale * 14), s[1] - t * (1.6 + gale * 1.5), s[2] + Math.cos(t * 0.5 + s[0]) * 0.8 + t * gale * 3]);
     this.updateField(this.dustField, this.dust, dt, cameraPosition, (s, t) => [s[0] + t * (8 + this.wind * 5), s[1] * 0.35 + Math.sin(t * 2 + s[2]) * 0.4, s[2] + Math.sin(t * 0.8 + s[0]) * 1.5]);
     this.updateRainbow(cameraPosition);
   }

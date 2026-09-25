@@ -108,7 +108,7 @@ class AudioEngine {
     const t = this.ctx.currentTime;
     const cold = s.biome === BIOME.SNOW || s.biome === BIOME.TAIGA;
     const windLevel = 0.03 + (s.wind - 0.6) * 0.035 + (cold ? 0.04 : 0) + clamp01((s.altitude - 12) / 30) * 0.05 + s.dust * 0.08;
-    this.wind.gain.gain.setTargetAtTime(Math.max(0.01, windLevel), t, 0.8);
+    this.wind.gain.gain.setTargetAtTime(Math.max(0.01, windLevel + (s.tornado || 0) * 0.3 + (s.blizzard || 0) * 0.12), t, 0.8);
     this.rain.gain.gain.setTargetAtTime(s.rain * 0.22, t, 0.8);
     this.water.gain.gain.setTargetAtTime(s.waterNearby * 0.16, t, 0.8);
 

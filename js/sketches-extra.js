@@ -213,23 +213,39 @@ const SPECIES_SKETCHES = (() => {
   };
 })();
 
-BIOME_SKETCHES[BIOME.OCEAN] = (() => {
-  const { ink, thin, bird } = SketchKit;
+BIOME_SKETCHES[BIOME.LAKE] = (() => {
+  const { ink, thin, bird, pine, grass } = SketchKit;
   return SketchFrame(`
-    <rect width="200" height="130" fill="#d8eef4"/>
-    <circle cx="150" cy="30" r="12" fill="#ffe27a" ${ink}/>
-    <g class="sk-drift"><path d="M24 30 q2 -8 12 -6 q6 -8 15 -1 q9 -1 8 6 h-31 q-6 -1 -4 1z" fill="#ffffff" ${ink}/></g>
-    ${bird(70, 24, 0)}${bird(86, 30, -1.4)}
-    <path d="M0 62 H200 V130 H0Z" fill="#5f9fbf" ${ink}/>
-    <path d="M0 74 H200 V130 H0Z" fill="#78b4c8"/>
-    ${[0, 1, 2].map((i) => `<path class="sk-wave" style="animation-delay:${-i * 0.9}s" d="M${-10 + i * 12} ${80 + i * 10} q12 -6 24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>`).join('')}
-    <g class="sk-bob" style="animation-duration:3s">
-      <path d="M120 70 h30 l-6 7 h-19z" fill="#c8583f" ${ink}/>
-      <path d="M135 70 V44 L150 66Z" fill="#f3ead8" ${ink}/>
-      <path d="M134 70 V48 L122 66Z" fill="#efe6d6" ${thin}/>
+    <rect width="200" height="130" fill="#dcecf2"/>
+    <path d="M-5 70 L45 28 L80 58 L112 34 L160 70Z" fill="#a9b8b4" ${ink}/>
+    <path d="M36 36 L45 28 L54 36 L48 34 L45 38Z" fill="#f4f6f4" ${thin}/>
+    ${pine(160, 72, 1.0)}${pine(182, 74, 1.2)}${pine(14, 72, 0.9)}
+    ${bird(92, 22, 0)}${bird(106, 28, -1.2)}
+    <path d="M0 70 H200 V130 H0Z" fill="#8cc4c8" ${ink}/>
+    <path d="M10 78 L45 76 L40 86 Z" fill="#a9b8b4" opacity="0.45"/>
+    ${[0, 1, 2].map((i) => `<path class="sk-wave" style="animation-delay:${-i * 1.1}s" d="M${20 + i * 45} ${88 + i * 9} q8 -3 16 0 t16 0" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>`).join('')}
+    <g class="sk-bob" style="animation-duration:3.6s">
+      <path d="M104 92 q16 8 34 0 l-4 6 h-26z" fill="#9a7352" ${ink}/>
+      <path d="M112 92 l-10 -6 M130 92 l10 -6" stroke="${SKETCH_INK}" stroke-width="1.6"/>
     </g>
-    <path d="M0 112 Q50 100 110 110 T200 104 V130 H0Z" fill="#ecdfb8" ${ink}/>
-    <path class="sk-foam" d="M0 112 Q50 100 110 110 T200 104" fill="none" stroke="#ffffff" stroke-width="3"/>
-    <path d="M40 122 q4 -6 8 0z" fill="#f2b8a8" ${thin}/><path d="M150 120 l4 -4 l4 4 l-4 3z" fill="#f0a23a" ${thin}/>
+    <ellipse cx="62" cy="108" rx="9" ry="3" fill="#7fa862" ${thin}/><ellipse cx="78" cy="114" rx="7" ry="2.5" fill="#8db46b" ${thin}/>
+    <circle cx="64" cy="106" r="2.2" fill="#f2b8c8" ${thin}/>
+    <path d="M0 118 Q40 112 70 122 V130 H0Z" fill="#b89f7c" ${ink}/>
+    ${[12, 22, 30, 176, 186].map((x, i) => `<g class="sk-sway" style="animation-delay:${-i * 0.5}s"><path d="M${x} ${124} L${x + 1} ${104}" stroke="#7a9a4a" stroke-width="2"/><rect x="${x - 1}" y="${104}" width="4" height="8" rx="2" fill="#7a5a3a" ${thin}/></g>`).join('')}
+    ${grass(44, 126, '#6f9a58')}
   `);
+})();
+
+const BIOME_ICONS = (() => {
+  const s = `stroke="${SKETCH_INK}" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"`;
+  const wrap = (body) => `<svg viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
+  return {
+    [BIOME.MEADOW]: wrap(`<path d="M12 21 V13" ${s}/><path d="M12 16 q-4 -1 -5 -4 q4 0 5 4z" fill="#8db46b" ${s}/>${[0, 72, 144, 216, 288].map((a) => `<ellipse cx="12" cy="7.5" rx="2.2" ry="3.4" transform="rotate(${a} 12 10)" fill="#f0a23a" ${s}/>`).join('')}<circle cx="12" cy="10" r="2" fill="#f7d36b" ${s}/>`),
+    [BIOME.FOREST]: wrap(`<path d="M11 21 L11.5 14 L12.5 14 L13 21Z" fill="#7d5c40" ${s}/><circle cx="8.5" cy="11" r="4" fill="#6f9a58" ${s}/><circle cx="15.5" cy="11" r="4" fill="#7fa862" ${s}/><circle cx="12" cy="7" r="4.5" fill="#8db46b" ${s}/>`),
+    [BIOME.TAIGA]: wrap(`<path d="M12 21 V18" ${s}/><path d="M5 18 L12 11 L19 18Z" fill="#4f7a52" ${s}/><path d="M7 13.5 L12 7.5 L17 13.5Z" fill="#5b885a" ${s}/><path d="M9 9 L12 4 L15 9Z" fill="#6a9664" ${s}/>`),
+    [BIOME.SNOW]: wrap(`${[0, 60, 120].map((a) => `<path d="M12 3 V21 M9.5 5 L12 7 L14.5 5 M9.5 19 L12 17 L14.5 19" transform="rotate(${a} 12 12)" fill="none" stroke="#6f93b0" stroke-width="1.6" stroke-linecap="round"/>`).join('')}`),
+    [BIOME.SAVANNA]: wrap(`<path d="M12 21 L12.5 13 M12.5 15 L16 11 M12.3 16 L9 12" fill="none" stroke="#6e5238" stroke-width="1.8" stroke-linecap="round"/><path d="M3 11 Q12 5 21 10 Q12 13 3 11Z" fill="#9ea85e" ${s}/>`),
+    [BIOME.DESERT]: wrap(`<path d="M10 21 V8 q0 -2.5 2 -2.5 q2 0 2 2.5 V21Z" fill="#76a067" ${s}/><path d="M10 14 H7.5 q-1.5 0 -1.5 -1.5 V10 q0 -1 1 -1 q1 0 1 1 V12 H10 M14 12 H16 V9 q0 -1 1 -1 q1 0 1 1 V11.5 q0 1.5 -1.5 1.5 H14" fill="#76a067" ${s}/><circle cx="12" cy="5" r="1.4" fill="#f07a8a" ${s}/>`),
+    [BIOME.LAKE]: wrap(`<path d="M3 9 q2.25 -2 4.5 0 t4.5 0 t4.5 0 t4.5 0 M3 14 q2.25 -2 4.5 0 t4.5 0 t4.5 0 t4.5 0 M3 19 q2.25 -2 4.5 0 t4.5 0 t4.5 0 t4.5 0" fill="none" stroke="#4f8fb0" stroke-width="1.7" stroke-linecap="round"/>`),
+  };
 })();

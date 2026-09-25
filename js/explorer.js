@@ -95,6 +95,36 @@ function createExplorer(materials) {
     add(ankle, box(0.16, 0.08, 0.27), m.boots, 0, -0.04, 0.045);
     add(ankle, box(0.165, 0.025, 0.28), m.sole, 0, -0.085, 0.045);
 
+    if (side === -1) {
+      const lanternPivot = pivot(elbow, 0, -0.3, 0.02);
+      const lantern = new THREE.Group();
+      lanternPivot.add(lantern);
+      const metal = materials.toon(0x3b3530);
+      const glass = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.95 });
+      const piece = (geometry, material, x, y, z) => {
+        const mesh = new THREE.Mesh(flatShaded(geometry), material);
+        mesh.position.set(x, y, z);
+        mesh.castShadow = material !== glass;
+        lantern.add(mesh);
+        return mesh;
+      };
+      piece(new THREE.TorusGeometry(0.05, 0.008, 4, 10, Math.PI), metal, 0, -0.02, 0);
+      piece(new THREE.ConeGeometry(0.075, 0.06, 6), metal, 0, -0.07, 0);
+      piece(new THREE.CylinderGeometry(0.05, 0.05, 0.12, 8), glass, 0, -0.16, 0);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+        piece(new THREE.BoxGeometry(0.01, 0.13, 0.01), metal, Math.cos(a) * 0.055, -0.16, Math.sin(a) * 0.055);
+      }
+      piece(new THREE.CylinderGeometry(0.07, 0.065, 0.03, 8), metal, 0, -0.235, 0);
+      const light = new THREE.PointLight(0xffc877, 0, 14, 1.6);
+      light.position.set(0, -0.16, 0);
+      lanternPivot.add(light);
+      lantern.visible = false;
+      rig.lanternPivot = lanternPivot;
+      rig.lantern = lantern;
+      rig.lanternLight = light;
+      rig.lanternGlass = glass;
+    }
     rig['shoulder' + key] = shoulder;
     rig['elbow' + key] = elbow;
     rig['hip' + key] = hip;
@@ -141,7 +171,7 @@ class ExplorerAnimator {
     const gait = smoothstep(0.15, 1.6, s.speed);
     const run = smoothstep(CONFIG.walkSpeed * 0.9, CONFIG.runSpeed * 0.95, s.speed);
     const cycleLength = lerp(2.5, 3.7, run);
-    this.phase += s.swimming ? dt * (2.6 + s.speed * 0.6) : (s.speed * dt / cycleLength) * Math.PI * 2;
+    this.phase += s.swimming ? dt * (2.4 + s.speed * 0.75) : (s.speed * dt / cycleLength) * Math.PI * 2;
     this.air = damp(this.air, !s.grounded && !s.swimming ? 1 : 0, 12, dt);
     this.swim = damp(this.swim, s.swimming ? 1 : 0, 6, dt);
     if (s.landImpact > 0) this.bob.velocity -= Math.min(4.5, s.landImpact * 0.32);
@@ -249,6 +279,20 @@ class ExplorerAnimator {
     r.body.position.y = 0.95 + bob;
 
     r.lean.rotation.z = 0;
+    const lp = s.lantern || 0;
+    if (lp > 0.001) {
+      const reach = Math.sin(clamp01(lp / 0.55) * Math.PI) * (lp < 0.55 ? 1 : 0);
+      const hold = smoothstep(0.45, 1, lp);
+      r.shoulderR.rotation.x = lerp(lerp(r.shoulderR.rotation.x, 2.3, reach), -0.5 + Math.sin(this.phase) * 0.12 * gait, hold);
+      r.shoulderR.rotation.z = lerp(lerp(r.shoulderR.rotation.z, -0.25, reach), -0.18, hold);
+      r.elbowR.rotation.x = lerp(lerp(r.elbowR.rotation.x, -1.2, reach), -0.55, hold);
+      this.lanternSwing = this.lanternSwing || new Spring(0);
+      const swing = this.lanternSwing.update(-this.bob.velocity * 0.6 + Math.sin(this.phase) * 0.18 * gait, dt, 1.4, 0.18);
+      r.lanternPivot.rotation.x = -(r.shoulderR.rotation.x + r.elbowR.rotation.x + (r.torso.rotation.x || 0)) + swing;
+      r.lanternPivot.rotation.z = -r.shoulderR.rotation.z + Math.sin(this.time * 1.3) * 0.05;
+    }
+    r.lantern.visible = lp > 0.42;
+    r.lantern.scale.setScalar(lerp(0.6, 1, smoothstep(0.42, 0.7, lp)));
     this.crawl = damp(this.crawl || 0, s.swimming && s.speed > 0.6 ? 1 : 0, 3.5, dt);
     const c = this.crawl;
     r.lean.rotation.x = c * 1.42;
@@ -281,6 +325,8 @@ class ExplorerAnimator {
       r.body.position.y = lerp(r.body.position.y, 0.95, c);
     }
 
+    if (this.crawl > 0.5) r.lantern.visible = false;
+    r.lanternLight.intensity = smoothstep(0.55, 1, lp) * (this.crawl > 0.5 ? 0.6 : 1.4) * (s.lanternFlicker || 1);
     this.pack.update(clamp(-this.bob.velocity * 0.35 + run * 0.08, -0.3, 0.35), dt, 2.8, 0.28);
     r.pack.rotation.x = this.pack.value;
     this.scarf.update(0.15 + run * 0.55 + Math.max(0, -this.bob.velocity) * 0.3, dt, 2.2, 0.3);

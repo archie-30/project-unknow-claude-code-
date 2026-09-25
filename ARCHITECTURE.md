@@ -38,8 +38,9 @@ js/world.js                World：區塊佇列、剔除、圓形與方塊碰撞
 js/wildlife.js             Butterflies（會飛散）、Birds（高空盤旋）
 js/animals.js              AnimalModels（8 種紙藝動物）、ANIMAL_TYPES、Animal（行為與動畫）、AnimalManager
 js/effects.js              Ripples（水面漣漪池）
-js/particles.js            Footprints、DustPuffs、AirMotes（花粉／螢火蟲）、FallingLeaves、LightShafts、FishJumps、SkyEvents（流星、候鳥）
-js/explorer.js             createExplorer（layer 1，第一人稱時隱藏）、ExplorerAnimator（含 onStep 腳步事件）
+js/particles.js            Footprints、DustPuffs、AirMotes（花粉；螢火蟲依 36m 格子固定在草原／森林的地點）、FallingLeaves、LightShafts、FishJumps、SkyEvents（流星、候鳥）
+js/regional.js             Tornado（龍捲風與捲起玩家）、Aurora（極光 shader）
+js/explorer.js             createExplorer（含右手燈籠與 PointLight）（layer 1，第一人稱時隱藏）、ExplorerAnimator（含 onStep 腳步事件）
 js/input.js                Input：移動鍵、Tab、Esc、1／3、← →
 js/player.js               Player：物理、游泳、跳躍／落地／入水事件
 js/camera.js               CameraRig：Pointer Lock、拖曳、自動跟隨、第一／第三人稱切換與過渡
@@ -135,6 +136,13 @@ js/main.js                 建立所有系統、暫停／繼續、發現判定�
 - 大海：`Terrain.oceanMask` 低頻遮罩 → `sampleHeight` 在海岸收斂成緩坡、外海降到約 −24m；`biomeAt` 在水面附近且遮罩 > 0.45 時回傳 `BIOME.OCEAN`
 - 游泳：`ExplorerAnimator` 的 `crawl` 權重把 `lean` 樞紐轉成趴姿並覆寫手臂（連續旋轉）、腿、頭部；`CameraRig.update(..., swimming)` 會抬高焦點
 - 介面：`Hud.setBiome` 更新左上角標籤；`Journal` 每張卡片有 `.sketch-ink`（墨線）與 `.sketch-color`（彩色）兩層，解鎖時用 CSS mask 由左往右暈染；`PauseMenu.handleKey` 依 `data-key` 對應快捷鍵
+
+## v2.1.01 補充
+
+- 燈籠：`Player.render` 依 `nightLevel`（夜晚係數，有遲滯）推進 `lanternPhase`（0 收起 → 1 手持）；`ExplorerAnimator` 依相位覆寫右手（伸向背包 → 拿到身前），`PointLight` 掛在永遠可見的樞紐上（避免光源數量變動導致材質重新編譯）
+- 暴風雪：`Weather.blizzard` 只在雪原計算，影響雪粒子、霧、`#frost` 疊加、移動速度（`player.slowFactor`）與風聲
+- 龍捲風：`Tornado.update` 回傳是否正在捲起玩家；捲起時主迴圈暫停玩家物理，直接設定位置與速度
+- `BIOME.LAKE`（原 OCEAN）：大湖泊；地形中其他小池塘仍屬周圍生態域
 
 ## 效能重點
 

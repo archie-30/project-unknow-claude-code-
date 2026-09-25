@@ -45,13 +45,14 @@ class Player {
     if (wishLength > 0) {
       wishX /= wishLength;
       wishZ /= wishLength;
-      targetSpeed = input.running ? CONFIG.runSpeed : CONFIG.walkSpeed;
+      targetSpeed = (input.running ? CONFIG.runSpeed : CONFIG.walkSpeed) * (this.slowFactor || 1);
       if (this.grounded && !this.swimming) {
         const grade = (Terrain.heightAt(this.position.x + wishX * 0.5, this.position.z + wishZ * 0.5) - terrainHere) / 0.5;
         targetSpeed *= Math.min(1, Math.max(0.35, 1 - (grade - 0.6) * 0.8));
       }
       const depth = CONFIG.waterLevel - terrainHere;
-      if (depth > 0.3) targetSpeed *= 1 - (1 - CONFIG.swimSpeedFactor) * clamp01((depth - 0.3) / 0.9);
+      const swimFactor = input.running ? 0.62 : CONFIG.swimSpeedFactor;
+      if (depth > 0.3) targetSpeed *= 1 - (1 - swimFactor) * clamp01((depth - 0.3) / 0.9);
     }
 
     const accel = (this.grounded ? CONFIG.groundAccel : CONFIG.airAccel) * dt;
@@ -127,6 +128,9 @@ class Player {
     this.mesh.rotation.y = this.facing;
     this.turnRate = damp(this.turnRate, wrapAngle(this.facing - previousFacing) / Math.max(dt, 1e-4), 10, dt);
 
+    const wantLantern = this.lanternOn ? this.nightLevel > 0.25 : this.nightLevel > 0.42;
+    this.lanternOn = wantLantern;
+    this.lanternPhase = clamp01((this.lanternPhase || 0) + (wantLantern ? dt / 1.6 : -dt / 1.3));
     this.animator.update(dt, {
       speed,
       grounded: this.grounded,
@@ -134,6 +138,8 @@ class Player {
       verticalSpeed: this.velocity.y,
       turnRate: this.turnRate,
       landImpact: this.landImpact,
+      lantern: this.lanternPhase,
+      lanternFlicker: 0.92 + Math.sin(performance.now() * 0.013) * 0.05 + Math.sin(performance.now() * 0.031) * 0.03,
     });
     this.landImpact = 0;
   }

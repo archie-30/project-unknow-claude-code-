@@ -279,7 +279,7 @@ canvas {
   display: block;
   width: 100%;
   height: auto;
-  filter: grayscale(1) sepia(0.9) saturate(1.2) brightness(1.08) contrast(0.85);
+  filter: grayscale(1) contrast(0.92) sepia(1) saturate(0.8) brightness(1.02);
   opacity: 0.8;
   transition: filter 1.6s ease, opacity 1.6s ease;
 }
@@ -642,7 +642,7 @@ body::after {
 }
 
 .biome-card.pending .sketch {
-  filter: grayscale(1) sepia(0.9) saturate(1.2) brightness(1.08) contrast(0.85);
+  filter: grayscale(1) contrast(0.92) sepia(1) saturate(0.8) brightness(1.02);
   opacity: 0.8;
 }
 
@@ -687,7 +687,7 @@ body::after {
 }
 
 @keyframes ink-to-color {
-  0% { filter: grayscale(1) sepia(0.9) saturate(1.2) brightness(1.08) contrast(0.85); opacity: 0.8; }
+  0% { filter: grayscale(1) contrast(0.92) sepia(1) saturate(0.8) brightness(1.02); opacity: 0.8; }
   35% { filter: grayscale(0.6) sepia(0.4) brightness(1.35) contrast(0.9); opacity: 1; }
   100% { filter: none; opacity: 1; }
 }
@@ -858,7 +858,7 @@ kbd {
 
 .sketch-ink .sketch,
 .biome-card.found .sketch-ink .sketch {
-  filter: grayscale(1) sepia(0.9) saturate(1.2) brightness(1.08) contrast(0.85) !important;
+  filter: grayscale(1) contrast(0.92) sepia(1) saturate(0.8) brightness(1.02) !important;
   opacity: 0.85 !important;
   animation: none !important;
 }
@@ -920,71 +920,67 @@ kbd {
 
 #biome-label {
   position: fixed;
-  left: 14px;
+  left: 16px;
   top: 14px;
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 128px;
-  padding: 8px 16px 8px 12px;
-  border-radius: 4px 14px 14px 4px;
-  background:
-    radial-gradient(ellipse at 20% 10%, rgba(255, 255, 255, 0.4), transparent 60%),
-    linear-gradient(90deg, var(--paper-dark), var(--paper) 30%);
-  border: 2px solid rgba(91, 58, 30, 0.55);
-  box-shadow: 0 3px 10px rgba(60, 40, 20, 0.25);
-  color: var(--ink);
+  gap: 12px;
+  color: #fff8ea;
   font-family: var(--hand);
   pointer-events: none;
   user-select: none;
+  transition: opacity 0.6s ease;
 }
 
-#biome-label:empty {
-  display: none;
-}
-
-#biome-label::after {
-  content: "";
-  position: absolute;
-  left: 38px;
-  right: 16px;
-  bottom: 5px;
-  height: 2px;
-  background: var(--ink);
-  opacity: 0.55;
-  transform: scaleX(0);
-  transform-origin: left;
-}
-
-#biome-label.changed::after,
-#biome-label.discovered::after {
-  animation: ink-line 1.4s ease forwards;
-}
-
-#biome-label.discovered {
-  animation: label-glow 2.4s ease;
-}
-
-.biome-pin {
-  width: 16px;
-  height: 16px;
-  border-radius: 50% 50% 50% 0;
-  background: #c8583f;
-  border: 2px solid var(--ink);
-  transform: rotate(-45deg);
+.biome-badge {
+  position: relative;
+  width: 44px;
+  height: 44px;
   flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fffaf0, #efe2c4);
+  box-shadow: 0 0 0 2px rgba(91, 58, 30, 0.7), 0 4px 12px rgba(40, 25, 10, 0.35);
+}
+
+.biome-badge svg {
+  position: absolute;
+  inset: 7px;
+  width: 30px;
+  height: 30px;
+}
+
+#biome-label.changed .biome-badge,
+#biome-label.discovered .biome-badge {
+  animation: badge-flip 0.8s cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+
+#biome-label.discovered .biome-badge {
+  animation: badge-flip 0.8s cubic-bezier(0.3, 0.8, 0.3, 1), badge-glow 2.6s ease;
+}
+
+.biome-text {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  text-shadow: 0 1px 2px rgba(40, 25, 10, 0.75), 0 2px 12px rgba(40, 25, 10, 0.45);
+}
+
+.biome-kicker {
+  font-size: 11px;
+  letter-spacing: 0.4em;
+  opacity: 0.85;
 }
 
 .biome-names {
   position: relative;
   display: inline-block;
-  height: 1.5em;
-  min-width: 4.5em;
-  overflow: hidden;
-  font-size: 20px;
-  letter-spacing: 0.2em;
-  line-height: 1.5em;
+  height: 1.3em;
+  min-width: 5em;
+  font-size: 26px;
+  letter-spacing: 0.22em;
+  line-height: 1.3em;
 }
 
 .biome-name {
@@ -992,45 +988,83 @@ kbd {
   left: 0;
   top: 0;
   white-space: nowrap;
-  transition: transform 0.6s cubic-bezier(0.3, 0.8, 0.3, 1), opacity 0.6s ease;
+  transition: opacity 0.7s ease, filter 0.7s ease, letter-spacing 0.9s ease, transform 0.7s ease;
 }
 
 .biome-name.entering {
-  transform: translateY(110%);
   opacity: 0;
+  filter: blur(6px);
+  letter-spacing: 0.6em;
+  transform: translateX(8px);
 }
 
 .biome-name.current {
-  transform: none;
   opacity: 1;
+  filter: none;
+  letter-spacing: 0.22em;
+  transform: none;
 }
 
 .biome-name.leaving {
-  transform: translateY(-110%);
   opacity: 0;
+  filter: blur(6px);
+  letter-spacing: 0.05em;
+  transform: translateX(-6px);
+}
+
+.brush-line {
+  width: 118px;
+  height: 8px;
+  margin-top: 1px;
+  overflow: visible;
+}
+
+.brush-line path {
+  fill: none;
+  stroke: #fff8ea;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 130;
+  stroke-dashoffset: 0;
+  filter: drop-shadow(0 1px 1px rgba(40, 25, 10, 0.6));
+}
+
+#biome-label.changed .brush-line path,
+#biome-label.discovered .brush-line path {
+  animation: brush-draw 1.2s ease 0.25s both;
 }
 
 .biome-new {
+  align-self: flex-start;
+  margin-top: 4px;
   padding: 1px 7px;
   border-radius: 6px;
-  background: #e0533d;
+  background: linear-gradient(135deg, #f6c55a, #e0913a);
   color: #fff;
   font: 700 11px/1.4 system-ui, sans-serif;
   font-style: normal;
+  box-shadow: 0 2px 6px rgba(40, 25, 10, 0.35);
   animation: new-pop 0.9s ease infinite alternate;
 }
 
-.biome-new[hidden],
-.run-tag[hidden] {
+.biome-new[hidden] {
   display: none;
 }
 
-.run-tag {
-  padding: 1px 8px;
-  border-radius: 10px;
-  background: rgba(91, 58, 30, 0.12);
-  font-size: 13px;
-  letter-spacing: 0.1em;
+@keyframes brush-draw {
+  from { stroke-dashoffset: 130; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes badge-flip {
+  0% { transform: rotateY(90deg) scale(0.8); }
+  60% { transform: rotateY(-12deg) scale(1.05); }
+  100% { transform: none; }
+}
+
+@keyframes badge-glow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(91, 58, 30, 0.7), 0 4px 12px rgba(40, 25, 10, 0.35); }
+  35% { box-shadow: 0 0 0 3px rgba(246, 197, 90, 0.9), 0 0 24px rgba(255, 200, 90, 0.9); }
 }
 
 @keyframes ink-line {
@@ -1054,4 +1088,15 @@ kbd {
 .journal-page.leave-left,
 .journal-page.leave-right {
   will-change: transform, opacity;
+}
+
+#frost {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 45%, rgba(235, 242, 248, 0.55) 80%, rgba(245, 250, 255, 0.9) 100%);
+  transition: opacity 1s linear;
 }

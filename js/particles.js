@@ -90,7 +90,7 @@ class DustPuffs {
 class AirMotes {
   constructor(scene) {
     this.pollen = this.makeField(scene, 160, 0xfff2cc, 0.07, THREE.NormalBlending);
-    this.fireflies = this.makeField(scene, 60, 0xd8ff7a, 0.16, THREE.AdditiveBlending);
+    this.fireflies = this.makeField(scene, 144, 0xd8ff7a, 0.16, THREE.AdditiveBlending);
     this.time = 0;
   }
 
@@ -132,7 +132,53 @@ class AirMotes {
     this.time += dt;
     const lush = biome === BIOME.MEADOW || biome === BIOME.FOREST || biome === BIOME.SAVANNA;
     this.updateField(this.pollen, center, env.daylight * (1 - env.overcast) * (lush ? 1 : 0.4), dt, false);
-    this.updateField(this.fireflies, center, env.night * (lush ? 1 : 0) * (1 - env.overcast * 0.7), dt, true);
+    this.updateSwarms(dt, center, env.night * (1 - env.overcast * 0.7));
+  }
+
+  updateSwarms(dt, center, amount) {
+    const field = this.fireflies;
+    field.points.visible = amount > 0.02;
+    if (!field.points.visible) return;
+    this.swarmTimer = (this.swarmTimer || 0) - dt;
+    if (this.swarmTimer <= 0 || !this.swarms) {
+      this.swarmTimer = 1;
+      const size = 36;
+      const cx = Math.floor(center.x / size);
+      const cz = Math.floor(center.z / size);
+      const found = [];
+      for (let i = -2; i <= 2; i++) {
+        for (let j = -2; j <= 2; j++) {
+          const h = hash2(cx + i, cz + j, WORLD_SEED ^ 0xf1f1);
+          if (h / 4294967296 > 0.4) continue;
+          const x = (cx + i + 0.2 + ((h >>> 8) & 255) / 255 * 0.6) * size;
+          const z = (cz + j + 0.2 + ((h >>> 16) & 255) / 255 * 0.6) * size;
+          const ground = Terrain.heightAt(x, z);
+          if (ground < CONFIG.waterLevel + 0.3) continue;
+          const biome = Terrain.biomeAt(x, z, ground);
+          if (biome !== BIOME.MEADOW && biome !== BIOME.FOREST) continue;
+          found.push({ x, z, ground, d: Math.hypot(x - center.x, z - center.z) });
+        }
+      }
+      this.swarms = found.sort((a, b) => a.d - b.d).slice(0, Math.floor(field.seeds.length / 24));
+    }
+    const t = this.time;
+    field.seeds.forEach((s, i) => {
+      const swarm = this.swarms[Math.floor(i / 24)];
+      if (!swarm) {
+        field.positions.set([0, -9999, 0], i * 3);
+        field.colors.set([0, 0, 0], i * 3);
+        return;
+      }
+      const r = 1 + (s.p % 3);
+      const x = swarm.x + Math.sin(t * 0.35 + s.p) * r + Math.sin(t * 0.9 + s.p * 2) * 0.4;
+      const z = swarm.z + Math.cos(t * 0.3 + s.p * 1.3) * r;
+      field.positions.set([x, swarm.ground + 0.4 + (s.y / 5) * 1.8 + Math.sin(t * 0.8 + s.p) * 0.3, z], i * 3);
+      const fade = clamp01(1 - (swarm.d - 45) / 25);
+      const v = amount * fade * Math.max(0, Math.sin(t * 2.2 + s.p * 3));
+      field.colors.set([v, v, v], i * 3);
+    });
+    field.points.geometry.attributes.position.needsUpdate = true;
+    field.points.geometry.attributes.color.needsUpdate = true;
   }
 }
 

@@ -7,7 +7,7 @@ const Terrain = (() => {
     [BIOME.FOREST]: [c(0x7fa062), c(0x729558), c(0x6a8c52)],
     [BIOME.TAIGA]: [c(0x8e9f6e), c(0x809366), c(0x97a878)],
     [BIOME.SNOW]: [c(0xd9dcdb), c(0xcfd4d6), c(0xdfdfda)],
-    [BIOME.OCEAN]: [c(0xecdfb8), c(0xe6d6aa), c(0xf0e4c4)],
+    [BIOME.LAKE]: [c(0xecdfb8), c(0xe6d6aa), c(0xf0e4c4)],
     [BIOME.SAVANNA]: [c(0xd4c48a), c(0xc7b77c), c(0xdccd96)],
     [BIOME.DESERT]: [c(0xecd8a8), c(0xe3cb95), c(0xf1e1b8)],
   };
@@ -46,7 +46,7 @@ const Terrain = (() => {
     const ocean = oceanMask(x, z);
     const land = landHeight(x, z);
     if (ocean <= 0) return land;
-    const seabed = -24 + simplex.noise(x * 0.01, z * 0.01) * 3;
+    const seabed = -14 + simplex.noise(x * 0.01, z * 0.01) * 2.5;
     const coast = Math.min(land, CONFIG.waterLevel + 1.5 + (land - CONFIG.waterLevel) * 0.25);
     return ocean < 0.5 ? lerp(land, coast, ocean * 2) : lerp(coast, seabed, (ocean - 0.5) * 2);
   }
@@ -96,7 +96,7 @@ const Terrain = (() => {
   }
 
   function biomeAt(x, z, height) {
-    if (height < CONFIG.waterLevel + 0.5 && oceanMask(x, z) > 0.45) return BIOME.OCEAN;
+    if (height < CONFIG.waterLevel + 0.5 && oceanMask(x, z) > 0.45) return BIOME.LAKE;
     const jitter = simplex.noise(x * 0.05, z * 0.05) * 0.05;
     const temp = simplex.noise(x * 0.0014 + 500, z * 0.0014 + 500) - Math.max(0, height - 8) * 0.02 + jitter;
     const moist = simplex.noise(x * 0.0017 - 700, z * 0.0017 + 300) - jitter;
@@ -114,7 +114,7 @@ const Terrain = (() => {
     const arid = biome === BIOME.DESERT || biome === BIOME.SAVANNA;
     let strata = 0;
     if (height < CONFIG.waterLevel - 0.3) out.copy(special.seabed);
-    else if ((height < CONFIG.waterLevel + 0.7 || (biome === BIOME.OCEAN || oceanMask(x, z) > 0.3) && height < CONFIG.waterLevel + 2.2) && biome !== BIOME.SNOW) out.copy(special.beach);
+    else if ((height < CONFIG.waterLevel + 0.7 || (biome === BIOME.LAKE || oceanMask(x, z) > 0.3) && height < CONFIG.waterLevel + 2.2) && biome !== BIOME.SNOW) out.copy(special.beach);
     else if (normalY < 0.68) {
       out.copy(arid ? special.sandstone : biome === BIOME.SNOW ? special.coldRock : special.rock);
       strata = Math.floor(height / 1.3 + grain * 0.4) % 2 === 0 ? 0.05 : -0.04;

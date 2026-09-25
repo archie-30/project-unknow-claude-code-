@@ -38,8 +38,10 @@ const Landmarks = (() => {
           x = Math.cos(angle) * distance;
           z = Math.sin(angle) * distance;
         } else {
-          x = (ci + 0.2 + rng() * 0.6) * cell;
-          z = (cj + 0.2 + rng() * 0.6) * cell;
+          x = (ci + 0.3 + rng() * 0.4) * cell;
+          z = (cj + 0.3 + rng() * 0.4) * cell;
+          const home = inCell(0, 0);
+          if (home && Math.hypot(home.x - x, home.z - z) < 220) continue;
         }
         if (!flatEnough(x, z)) continue;
         const biome = Terrain.biomeAt(x, z, Terrain.heightAt(x, z));

@@ -68,13 +68,16 @@ class Hud {
     this.busy = false;
     this.biomeLabel = document.getElementById('biome-label');
     this.biomeLabel.innerHTML = `
-      <span class="biome-pin"></span>
-      <span class="biome-names"><span class="biome-name current"></span></span>
-      <em class="biome-new" hidden>NEW</em>
-      <span class="run-tag" hidden>跑步</span>`;
+      <span class="biome-badge"></span>
+      <span class="biome-text">
+        <span class="biome-kicker">目前位置</span>
+        <span class="biome-names"><span class="biome-name current"></span></span>
+        <svg class="brush-line" viewBox="0 0 120 8" preserveAspectRatio="none"><path d="M2 5 C 30 1, 60 7, 90 3 S 116 4, 118 3"/></svg>
+      </span>
+      <em class="biome-new" hidden>NEW</em>`;
+    this.biomeBadge = this.biomeLabel.querySelector('.biome-badge');
     this.biomeNames = this.biomeLabel.querySelector('.biome-names');
     this.biomeNew = this.biomeLabel.querySelector('.biome-new');
-    this.runTag = this.biomeLabel.querySelector('.run-tag');
   }
 
   setBiome(info, isNew) {
@@ -86,7 +89,7 @@ class Hud {
     if (old && old.textContent) {
       old.classList.remove('current');
       old.classList.add('leaving');
-      setTimeout(() => old.remove(), 700);
+      setTimeout(() => old.remove(), 800);
     } else if (old) {
       old.remove();
     }
@@ -94,6 +97,7 @@ class Hud {
       fresh.classList.remove('entering');
       fresh.classList.add('current');
     }));
+    this.biomeBadge.innerHTML = BIOME_ICONS[info.id] || '';
     this.biomeLabel.classList.remove('changed', 'discovered');
     void this.biomeLabel.offsetWidth;
     this.biomeLabel.classList.add(isNew ? 'discovered' : 'changed');
@@ -102,9 +106,7 @@ class Hud {
     if (isNew) this.newTimer = setTimeout(() => { this.biomeNew.hidden = true; }, 6000);
   }
 
-  setRunning(running) {
-    this.runTag.hidden = !running;
-  }
+  setRunning() {}
 
   show(sub, name, isNew) {
     this.queue.push({ sub, name, isNew });

@@ -26,7 +26,7 @@ const DECOR_TYPES = {
 };
 
 const BIOME_DECOR = {
-  [BIOME.OCEAN]: [['pebbles', 0.05], ['rock', 0.02], ['dryGrass', 0.04]],
+  [BIOME.LAKE]: [['pebbles', 0.05], ['rock', 0.02], ['dryGrass', 0.04]],
   [BIOME.MEADOW]: [['grass', 0.26], ['flowersWarm', 0.09], ['flowersCool', 0.08], ['bush', 0.03], ['berryBush', 0.02], ['blossomBush', 0.03], ['broadleaf', 0.025], ['blossomTree', 0.02], ['birch', 0.02], ['rock', 0.02], ['boulder', 0.006], ['pebbles', 0.03]],
   [BIOME.FOREST]: [['broadleaf', 0.18], ['blossomTree', 0.03], ['birch', 0.07], ['pine', 0.03], ['bush', 0.06], ['blossomBush', 0.015], ['berryBush', 0.03], ['mushrooms', 0.06], ['fern', 0.16], ['log', 0.02], ['rock', 0.025]],
   [BIOME.TAIGA]: [['pine', 0.24], ['rock', 0.05], ['boulder', 0.012], ['bush', 0.03], ['fern', 0.06], ['grass', 0.08], ['log', 0.02], ['mushrooms', 0.025]],
@@ -37,7 +37,7 @@ const BIOME_DECOR = {
 
 
 const GROUND_COVER = {
-  [BIOME.OCEAN]: [['pebbles', 0.02]],
+  [BIOME.LAKE]: [['pebbles', 0.02]],
   [BIOME.MEADOW]: [['grass', 0.42], ['flowersWarm', 0.05], ['flowersCool', 0.05]],
   [BIOME.FOREST]: [['fern', 0.22], ['grass', 0.18], ['mushrooms', 0.015]],
   [BIOME.TAIGA]: [['grass', 0.16], ['fern', 0.08]],

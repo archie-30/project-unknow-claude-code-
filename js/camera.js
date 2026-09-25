@@ -165,7 +165,8 @@ class CameraRig {
     const floor = this.floorAt(this.thirdPosition.x, this.thirdPosition.z);
     if (this.thirdPosition.y < floor) this.thirdPosition.y = floor;
 
-    this.eye.set(target.x - Math.sin(this.yaw) * 0.12, target.y + CONFIG.eyeHeight + bob, target.z - Math.cos(this.yaw) * 0.12);
+    this.eyeY = this.eyeY === undefined || dt === 0 ? target.y : damp(this.eyeY, target.y, 14, dt);
+    this.eye.set(target.x - Math.sin(this.yaw) * 0.12, this.eyeY + CONFIG.eyeHeight + bob, target.z - Math.cos(this.yaw) * 0.12);
     this.camera.position.lerpVectors(this.thirdPosition, this.eye, blend);
     this.lookTarget.copy(this.eye).addScaledVector(this.direction, -10);
     this.lookTarget.lerpVectors(this.focus, this.lookTarget, blend);

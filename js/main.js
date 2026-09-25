@@ -39,12 +39,15 @@ const skyEvents = new SkyEvents(scene, materials);
 const animals = new AnimalManager(scene, materials);
 const smoke = new SmokePlumes(scene, materials);
 const weather = new Weather(scene);
+const tornado = new Tornado(scene, materials);
 const timeOfDay = new TimeOfDay();
 const audio = new AudioEngine();
 const settings = new Settings('endless-meadow.settings');
 const discoveries = new DiscoveryStore('endless-meadow.discoveries');
 const hud = new Hud();
 const journal = new Journal(discoveries, audio);
+const aurora = new Aurora(sky.group);
+const frost = document.getElementById('frost');
 
 world.onLandmarkLoad = (entry) => { if (entry.smoke) smoke.add(entry.lm.key, entry.smoke); };
 world.onLandmarkUnload = (entry) => smoke.remove(entry.lm.key);
@@ -273,9 +276,21 @@ function simulate(dt) {
   elapsed += dt;
   shaderTime.value = elapsed;
   accumulator += dt;
-  while (accumulator >= CONFIG.physicsStep) {
-    player.fixedUpdate(CONFIG.physicsStep, input, cameraRig.yaw, world);
-    accumulator -= CONFIG.physicsStep;
+  const currentBiome = biomeTracker.current === null ? BIOME.MEADOW : biomeTracker.current;
+  const wasTornado = tornado.active;
+  const caught = tornado.update(dt, player, currentBiome, weather, () => {
+    hud.show('小心', '被龍捲風捲走了！', false);
+    audio.flutter();
+  });
+  if (!wasTornado && tornado.active) hud.show('天氣', '遠方出現龍捲風', false);
+  player.slowFactor = 1 - 0.3 * (weather.blizzard || 0);
+  if (caught) {
+    accumulator = 0;
+  } else {
+    while (accumulator >= CONFIG.physicsStep) {
+      player.fixedUpdate(CONFIG.physicsStep, input, cameraRig.yaw, world);
+      accumulator -= CONFIG.physicsStep;
+    }
   }
   if (player.jumped) {
     audio.jump();
@@ -286,6 +301,7 @@ function simulate(dt) {
     const surface = surfaceUnderPlayer();
     dust.spawn(player.position, SURFACE_COLORS[surface].dust, 5, 1 + player.landImpact / 20);
   }
+  player.nightLevel = timeOfDay.env.night;
   player.render(accumulator / CONFIG.physicsStep, dt);
   world.update(player.position, player.velocity);
 
@@ -293,6 +309,11 @@ function simulate(dt) {
   forestAmount = damp(forestAmount, biome === BIOME.FOREST ? 1 : biome === BIOME.TAIGA ? 0.5 : 0, 0.8, dt);
   weather.update(dt, camera.position, biome, timeOfDay.env);
   const env = timeOfDay.update(dt, weather);
+  aurora.update(dt, env, biome);
+  const blizzardOn = (weather.blizzard || 0) > 0.5;
+  if (blizzardOn && !weather.blizzardAnnounced) hud.show('天氣', '暴風雪', false);
+  weather.blizzardAnnounced = blizzardOn;
+  frost.style.opacity = (weather.blizzard || 0).toFixed(2);
   shaderWind.value = weather.wind;
   shaderPlayer.value.copy(player.renderPosition);
 
@@ -323,18 +344,22 @@ function simulate(dt) {
   updateRipples(dt);
   updateBiome(dt);
   updateDiscoveries(dt);
-  audio.update(dt, { biome, night: env.night, daylight: env.daylight, wind: weather.wind, rain: weather.rain, dust: weather.dust, waterNearby, altitude: player.position.y });
+  audio.update(dt, { tornado: tornado.distanceLevel, blizzard: weather.blizzard || 0, biome, night: env.night, daylight: env.daylight, wind: weather.wind, rain: weather.rain, dust: weather.dust, waterNearby, altitude: player.position.y });
   return env;
 }
+
+const blizzardFog = new THREE.Color();
 
 function applyEnvironment(env) {
   sky.update(env);
   horizon.update(env, camera.position);
   lights.update(env, player.renderPosition);
   scene.fog.color.copy(env.fogColor);
-  scene.fog.near = lerp(lerp(CONFIG.fogNear, 14, env.fog), 10, env.dust);
-  scene.fog.far = lerp(lerp(CONFIG.fogFar, 75, env.fog), 55, env.dust);
-  renderer.setClearColor(env.fogColor);
+  const gale = weather.blizzard || 0;
+  scene.fog.color.lerp(blizzardFog.setRGB(0.86, 0.89, 0.92).multiplyScalar(0.35 + 0.65 * env.daylight), gale * 0.85);
+  scene.fog.near = lerp(lerp(lerp(CONFIG.fogNear, 14, env.fog), 10, env.dust), 4, gale);
+  scene.fog.far = lerp(lerp(lerp(CONFIG.fogFar, 75, env.fog), 55, env.dust), 40, gale);
+  renderer.setClearColor(scene.fog.color);
 }
 
 function frame() {
@@ -343,7 +368,7 @@ function frame() {
   let env = timeOfDay.env;
   if (!paused) env = simulate(dt);
   else if (!env.skyTop.getHex()) env = timeOfDay.update(0, weather);
-  const bob = cameraRig.firstPerson ? Math.sin(player.animator.phase * 2) * 0.035 * player.animator.gait + (player.rig.body.position.y - 0.95) : 0;
+  const bob = cameraRig.firstPerson ? Math.sin(player.animator.phase * 2) * 0.012 * player.animator.gait : 0;
   cameraTarget.copy(player.renderPosition);
   cameraRig.update(paused ? 0 : dt, cameraTarget, paused ? UP.clone().multiplyScalar(0) : player.velocity, bob, player.swimming);
   applyEnvironment(env);
