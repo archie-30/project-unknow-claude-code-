@@ -115,8 +115,8 @@ class AirMotes {
     field.seeds.forEach((s, i) => {
       const x = s.x + Math.sin(t * 0.3 + s.p) * 2;
       const z = s.z + Math.cos(t * 0.25 + s.p * 1.3) * 2;
-      const wx = center.x + ((((x + 15) % 30) + 30) % 30) - 15;
-      const wz = center.z + ((((z + 15) % 30) + 30) % 30) - 15;
+      const wx = x + 30 * Math.round((center.x - x) / 30);
+      const wz = z + 30 * Math.round((center.z - z) / 30);
       const ground = Math.max(Terrain.heightAt(wx, wz), CONFIG.waterLevel);
       field.positions.set([wx, ground + 0.4 + s.y * 0.5 + Math.sin(t * 0.8 + s.p) * 0.4, wz], i * 3);
       const glow = flicker ? Math.max(0, Math.sin(t * 2.2 + s.p * 3)) : 1;
@@ -264,8 +264,9 @@ class LightShafts {
     for (const item of this.items) {
       item.mesh.visible = strength > 0.005;
       if (!item.mesh.visible) continue;
-      const rx = ((item.offset.x - center.x * 0.02) % 30 + 45) % 30 - 15;
-      this.base.set(center.x + rx, 0, center.z + item.offset.z);
+      const ox = item.offset.x * 1.4;
+      const oz = item.offset.z * 1.4;
+      this.base.set(ox + 42 * Math.round((center.x - ox) / 42), 0, oz + 42 * Math.round((center.z - oz) / 42));
       this.base.y = Terrain.heightAt(this.base.x, this.base.z);
       this.base.addScaledVector(dir, 8);
       this.zAxis.copy(camera.position).sub(this.base);

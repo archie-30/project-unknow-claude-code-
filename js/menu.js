@@ -47,27 +47,27 @@ class PauseMenu {
           <h1>無盡原野</h1>
           <p class="menu-sub">一位探險家的田野筆記</p>
           <div class="menu-main">
-            <button type="button" class="menu-button primary" data-action="resume" data-key="Enter"><span class="label">開始探險</span>${k('Enter')}</button>
-            <button type="button" class="menu-button" data-panel="settings" data-key="KeyS">設定${k('S')}</button>
-            <button type="button" class="menu-button" data-panel="help" data-key="KeyH">操作說明${k('H')}</button>
+            <button type="button" class="menu-button primary" data-action="resume" data-key="Digit1"><span class="label">開始探險</span>${k('1')}</button>
+            <button type="button" class="menu-button" data-panel="settings" data-key="Digit2">設定${k('2')}</button>
+            <button type="button" class="menu-button" data-panel="help" data-key="Digit3">操作說明${k('3')}</button>
           </div>
           <section class="menu-panel" data-panel="settings" hidden>
-            <label class="menu-row"><span>靜音 ${k('M')}</span><input type="checkbox" data-setting="muted" data-key="KeyM" ${v.muted ? 'checked' : ''}></label>
+            <label class="menu-row"><span>靜音 ${k('1')}</span><input type="checkbox" data-setting="muted" data-key="Digit1" ${v.muted ? 'checked' : ''}></label>
             <label class="menu-row"><span>主音量</span><input type="range" min="0" max="1" step="0.05" data-setting="master" value="${v.master}"></label>
             <label class="menu-row"><span>環境音</span><input type="range" min="0" max="1" step="0.05" data-setting="ambient" value="${v.ambient}"></label>
             <label class="menu-row"><span>音效</span><input type="range" min="0" max="1" step="0.05" data-setting="sfx" value="${v.sfx}"></label>
             <label class="menu-row"><span>滑鼠靈敏度</span><input type="range" min="0.3" max="2.5" step="0.1" data-setting="sensitivity" value="${v.sensitivity}"></label>
-            <label class="menu-row"><span>鏡頭自動跟隨 ${k('C')}</span><input type="checkbox" data-setting="autoCamera" data-key="KeyC" ${v.autoCamera ? 'checked' : ''}></label>
-            <label class="menu-row"><span>畫質 ${k('Q')}</span>
-              <select data-setting="quality" data-key="KeyQ">
+            <label class="menu-row"><span>鏡頭自動跟隨 ${k('2')}</span><input type="checkbox" data-setting="autoCamera" data-key="Digit2" ${v.autoCamera ? 'checked' : ''}></label>
+            <label class="menu-row"><span>畫質 ${k('3')}</span>
+              <select data-setting="quality" data-key="Digit3">
                 <option value="high" ${v.quality === 'high' ? 'selected' : ''}>高</option>
                 <option value="medium" ${v.quality === 'medium' ? 'selected' : ''}>中</option>
                 <option value="low" ${v.quality === 'low' ? 'selected' : ''}>低（平板建議）</option>
               </select>
             </label>
-            <button type="button" class="menu-button danger" data-action="reset" data-key="KeyR" data-label="重置圖鑑"><span class="label">重置圖鑑</span>${k('R')}</button>
-            <button type="button" class="menu-button" data-action="defaults" data-key="KeyD"><span class="label">恢復預設設定</span>${k('D')}</button>
-            <button type="button" class="menu-button" data-panel="main" data-key="KeyB">返回${k('B')}</button>
+            <button type="button" class="menu-button danger" data-action="reset" data-key="Digit4" data-label="重置圖鑑"><span class="label">重置圖鑑</span>${k('4')}</button>
+            <button type="button" class="menu-button" data-action="defaults" data-key="Digit5"><span class="label">恢復預設設定</span>${k('5')}</button>
+            <button type="button" class="menu-button" data-panel="main" data-key="Digit0">返回${k('0')}</button>
           </section>
           <section class="menu-panel" data-panel="help" hidden>
             <ul class="help-list">
@@ -76,11 +76,12 @@ class PauseMenu {
               <li>${k('空白鍵')} 跳躍</li>
               <li>滑鼠 轉動視角，滾輪 拉近拉遠</li>
               <li>${k('1')} 第一人稱 · ${k('3')} 第三人稱</li>
-              <li>${k('Tab')} 探險筆記，筆記中 ${k('1')}${k('2')}${k('3')} 或 ${k('←')}${k('→')} 換頁</li>
-              <li>${k('Esc')} 暫停選單 / 返回</li>
+              <li>${k('Tab')} 探險筆記（開啟時遊戲暫停，${k('Esc')} 關閉），筆記中 ${k('1')}${k('2')}${k('3')} 或 ${k('←')}${k('→')} 換頁</li>
+              <li>${k('Esc')} 暫停選單 / 返回，選單內用數字鍵選擇</li>
+              <li>第一人稱時按住 ${k('V')} 使用望遠鏡</li>
               <li>平板：手指拖曳轉視角、雙指縮放，右上角按鈕暫停</li>
             </ul>
-            <button type="button" class="menu-button" data-panel="main" data-key="KeyB">返回${k('B')}</button>
+            <button type="button" class="menu-button" data-panel="main" data-key="Digit0">返回${k('0')}</button>
           </section>
           <p class="menu-foot">version ${GAME_VERSION}</p>
         </div>
@@ -129,7 +130,8 @@ class PauseMenu {
       return true;
     }
     const scope = panel === 'main' ? this.root.querySelector('.menu-main') : this.root.querySelector(`.menu-panel[data-panel="${panel}"]`);
-    const code = e.code === 'NumpadEnter' || e.code === 'Space' ? 'Enter' : e.code;
+    let code = e.code.startsWith('Numpad') && /\d$/.test(e.code) ? 'Digit' + e.code.slice(-1) : e.code;
+    if ((code === 'Enter' || code === 'NumpadEnter') && panel === 'main') code = 'Digit1';
     const target = scope.querySelector(`[data-key="${code}"]`);
     if (!target) return true;
     if (target.tagName === 'BUTTON') this.press(target);

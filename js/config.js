@@ -1,4 +1,4 @@
-const GAME_VERSION = 'v2.1.01';
+const GAME_VERSION = 'v2.1.02';
 
 const CONFIG = {
   chunkSize: 48,

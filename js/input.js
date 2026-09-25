@@ -11,7 +11,7 @@ class Input {
     this.runToggle = false;
     this.wasMoving = false;
     this.onRunChange = null;
-    const movement = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space']);
+    const movement = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyV']);
     window.addEventListener('keydown', (e) => {
       if (e.target && e.target.tagName === 'SELECT') return;
       if (this.onMenuKey && this.onMenuKey(e)) {
@@ -72,6 +72,7 @@ class Input {
   }
 
   axis() {
+    if (this.suppressMove) return { x: 0, z: 0 };
     const x = (this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('KeyA') ? 1 : 0);
     const z = (this.keys.has('KeyS') ? 1 : 0) - (this.keys.has('KeyW') ? 1 : 0);
     const moving = ['KeyW', 'KeyA', 'KeyS', 'KeyD'].some((k) => this.keys.has(k));

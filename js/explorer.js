@@ -1,31 +1,40 @@
 function createExplorer(materials) {
   const m = {
-    skin: materials.toon(0xf1c29a),
-    shirt: materials.toon(0xe3d3a4),
-    vest: materials.toon(0x7d8b5a),
-    pants: materials.toon(0x8a6a4a),
-    boots: materials.toon(0x4a3526),
+    skin: materials.toon(0xf0c29c),
+    blush: materials.toon(0xe9a58a),
+    shirt: materials.toon(0xe8dcb6),
+    vest: materials.toon(0x7b8a5a),
+    vestDark: materials.toon(0x68774b),
+    pants: materials.toon(0x8f6e4c),
+    patch: materials.toon(0x7a5c3e),
+    boots: materials.toon(0x5a3f2c),
     sole: materials.toon(0x2f231a),
-    hat: materials.toon(0xc8a66a),
+    hat: materials.toon(0xcfae72),
     band: materials.toon(0x6b4a2e),
-    pack: materials.toon(0x5f7d4a),
-    roll: materials.toon(0xb0473c),
+    pack: materials.toon(0x6a8552),
+    packDark: materials.toon(0x56703f),
+    roll: materials.toon(0xb5503f),
     scarf: materials.toon(0xd9573f),
-    dark: materials.toon(0x2b2b2b),
-    strap: materials.toon(0x5a3d26),
+    dark: materials.toon(0x2b2522),
+    white: materials.toon(0xffffff),
+    leather: materials.toon(0x6a4a30),
     hair: materials.toon(0x5a3a24),
     metal: materials.toon(0xc9ccd1),
+    brass: materials.toon(0xc8a14a),
   };
   const add = (parent, geometry, material, x = 0, y = 0, z = 0) => {
-    const mesh = new THREE.Mesh(flatShaded(geometry), material);
+    const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     mesh.layers.set(1);
     parent.add(mesh);
     return mesh;
   };
-  const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-  const cyl = (rt, rb, h, s) => new THREE.CylinderGeometry(rt, rb, h, s);
+  const rbox = (w, h, d, r = 0.04) => new THREE.RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001));
+  const cap = (r, len) => new THREE.CapsuleGeometry(r, len, 5, 12);
+  const sph = (r) => new THREE.SphereGeometry(r, 18, 14);
+  const cyl = (rt, rb, h, s = 20) => new THREE.CylinderGeometry(rt, rb, h, s);
+  const tor = (r, t, arc = Math.PI * 2) => new THREE.TorusGeometry(r, t, 8, 24, arc);
   const pivot = (parent, x, y, z) => {
     const g = new THREE.Group();
     g.position.set(x, y, z);
@@ -36,86 +45,115 @@ function createExplorer(materials) {
   const root = new THREE.Group();
   const lean = pivot(root, 0, 0, 0);
   const body = pivot(lean, 0, 0.95, 0);
-  add(body, box(0.36, 0.2, 0.22), m.pants, 0, 0, 0);
+  add(body, rbox(0.34, 0.2, 0.22, 0.08), m.pants, 0, 0, 0);
 
   const torso = pivot(body, 0, 0.07, 0);
-  add(torso, box(0.38, 0.5, 0.23), m.shirt, 0, 0.25, 0);
-  add(torso, box(0.41, 0.36, 0.25), m.vest, 0, 0.2, 0);
-  add(torso, box(0.1, 0.12, 0.02), m.vest, 0.12, 0.26, 0.13);
-  add(torso, box(0.1, 0.12, 0.02), m.vest, -0.12, 0.26, 0.13);
-  add(torso, box(0.43, 0.06, 0.27), m.strap, 0, 0.03, 0);
-  add(torso, box(0.07, 0.07, 0.03), m.metal, 0, 0.03, 0.14);
-  add(torso, box(0.12, 0.1, 0.1), m.strap, 0.2, 0.0, 0.05);
-  add(torso, box(0.3, 0.08, 0.28), m.scarf, 0, 0.51, 0);
-  add(torso, box(0.05, 0.44, 0.02), m.strap, 0.12, 0.27, 0.13);
-  add(torso, box(0.05, 0.44, 0.02), m.strap, -0.12, 0.27, 0.13);
+  add(torso, rbox(0.36, 0.5, 0.22, 0.1), m.shirt, 0, 0.25, 0);
+  add(torso, rbox(0.13, 0.36, 0.245, 0.05), m.vest, 0.13, 0.21, 0).rotation.z = 0.04;
+  add(torso, rbox(0.13, 0.36, 0.245, 0.05), m.vest, -0.13, 0.21, 0).rotation.z = -0.04;
+  add(torso, rbox(0.38, 0.3, 0.1, 0.04), m.vest, 0, 0.23, -0.08);
+  add(torso, rbox(0.08, 0.07, 0.02, 0.015), m.vestDark, 0.13, 0.28, 0.125);
+  add(torso, rbox(0.08, 0.07, 0.02, 0.015), m.vestDark, -0.13, 0.28, 0.125);
+  add(torso, rbox(0.07, 0.06, 0.02, 0.015), m.vestDark, 0.12, 0.13, 0.125);
+  add(torso, rbox(0.08, 0.1, 0.03, 0.02), m.shirt, 0.06, 0.45, 0.1).rotation.z = -0.5;
+  add(torso, rbox(0.08, 0.1, 0.03, 0.02), m.shirt, -0.06, 0.45, 0.1).rotation.z = 0.5;
+  add(torso, cyl(0.19, 0.19, 0.055, 24), m.leather, 0, 0.04, 0).scale.set(1, 1, 0.66);
+  add(torso, rbox(0.06, 0.05, 0.02, 0.01), m.brass, 0, 0.04, 0.13);
+  add(torso, rbox(0.1, 0.1, 0.08, 0.03), m.leather, 0.19, 0.0, 0.05);
+  add(torso, cyl(0.045, 0.05, 0.13, 14), m.metal, -0.2, 0.02, 0.02);
+  add(torso, cyl(0.02, 0.02, 0.03, 10), m.dark, -0.2, 0.1, 0.02);
+  add(torso, tor(0.13, 0.045).rotateX(Math.PI / 2), m.scarf, 0, 0.5, 0).scale.set(1, 1, 0.85);
+  add(torso, rbox(0.03, 0.44, 0.02, 0.01), m.leather, 0.12, 0.27, 0.125);
+  add(torso, rbox(0.03, 0.44, 0.02, 0.01), m.leather, -0.12, 0.27, 0.125);
 
-  const scarfA = pivot(torso, 0.07, 0.49, 0.15);
-  add(scarfA, box(0.08, 0.22, 0.035), m.scarf, 0, -0.11, 0);
-  const scarfB = pivot(torso, 0.13, 0.49, 0.14);
-  add(scarfB, box(0.065, 0.16, 0.03), m.scarf, 0, -0.08, 0);
+  const scarfA = pivot(torso, 0.06, 0.48, 0.14);
+  add(scarfA, rbox(0.08, 0.22, 0.03, 0.012), m.scarf, 0, -0.11, 0);
+  const scarfB = pivot(torso, 0.12, 0.48, 0.13);
+  add(scarfB, rbox(0.065, 0.16, 0.025, 0.01), m.scarf, 0, -0.08, 0);
 
   const pack = pivot(torso, 0, 0.48, -0.13);
-  add(pack, box(0.34, 0.42, 0.17), m.pack, 0, -0.21, -0.07);
-  add(pack, box(0.24, 0.15, 0.05), m.pack, 0, -0.34, -0.17);
-  add(pack, box(0.05, 0.05, 0.02), m.metal, 0, -0.29, -0.2);
-  add(pack, cyl(0.085, 0.085, 0.42, 8).rotateZ(Math.PI / 2), m.roll, 0, 0.06, -0.07);
-  add(pack, cyl(0.03, 0.03, 0.12, 6), m.metal, -0.19, -0.18, -0.11);
+  add(pack, rbox(0.32, 0.42, 0.17, 0.06), m.pack, 0, -0.21, -0.07);
+  add(pack, rbox(0.33, 0.14, 0.18, 0.05), m.packDark, 0, -0.04, -0.07);
+  add(pack, rbox(0.22, 0.14, 0.06, 0.03), m.packDark, 0, -0.32, -0.17);
+  add(pack, rbox(0.04, 0.04, 0.02, 0.008), m.brass, 0, -0.1, -0.165);
+  add(pack, rbox(0.04, 0.04, 0.02, 0.008), m.brass, 0, -0.3, -0.205);
+  add(pack, cyl(0.085, 0.085, 0.42, 16).rotateZ(Math.PI / 2), m.roll, 0, 0.06, -0.07);
+  add(pack, cyl(0.089, 0.089, 0.03, 16).rotateZ(Math.PI / 2), m.leather, 0.1, 0.06, -0.07);
+  add(pack, cyl(0.089, 0.089, 0.03, 16).rotateZ(Math.PI / 2), m.leather, -0.1, 0.06, -0.07);
 
   const head = pivot(torso, 0, 0.56, 0);
-  add(head, box(0.1, 0.08, 0.1), m.skin, 0, 0.03, 0);
-  add(head, box(0.25, 0.26, 0.24), m.skin, 0, 0.19, 0);
-  add(head, box(0.26, 0.12, 0.1), m.hair, 0, 0.24, -0.09);
-  add(head, box(0.04, 0.05, 0.02), m.dark, 0.06, 0.21, 0.121);
-  add(head, box(0.04, 0.05, 0.02), m.dark, -0.06, 0.21, 0.121);
-  add(head, box(0.05, 0.06, 0.05), m.skin, 0, 0.16, 0.13);
-  add(head, box(0.08, 0.02, 0.02), m.band, 0, 0.09, 0.121);
-  const hat = pivot(head, 0, 0.33, 0);
-  add(hat, cyl(0.28, 0.28, 0.03, 12), m.hat, 0, 0, 0);
-  add(hat, cyl(0.14, 0.165, 0.15, 10), m.hat, 0, 0.085, 0);
-  add(hat, cyl(0.168, 0.168, 0.045, 10), m.band, 0, 0.03, 0);
+  add(head, cyl(0.05, 0.055, 0.08, 14), m.skin, 0, 0.03, 0);
+  const skull = add(head, sph(0.135), m.skin, 0, 0.19, 0.005);
+  skull.scale.set(1, 1.04, 0.98);
+  add(head, sph(0.14), m.hair, 0, 0.21, -0.03).scale.set(1.0, 0.85, 0.95);
+  add(head, sph(0.03), m.skin, 0.132, 0.18, -0.01).scale.set(0.6, 1, 1);
+  add(head, sph(0.03), m.skin, -0.132, 0.18, -0.01).scale.set(0.6, 1, 1);
+  add(head, sph(0.022), m.dark, 0.048, 0.205, 0.118).scale.set(1, 1.25, 0.6);
+  add(head, sph(0.022), m.dark, -0.048, 0.205, 0.118).scale.set(1, 1.25, 0.6);
+  add(head, sph(0.007), m.white, 0.054, 0.215, 0.13);
+  add(head, sph(0.007), m.white, -0.042, 0.215, 0.13);
+  add(head, rbox(0.045, 0.012, 0.012, 0.005), m.hair, 0.05, 0.245, 0.118).rotation.z = -0.15;
+  add(head, rbox(0.045, 0.012, 0.012, 0.005), m.hair, -0.05, 0.245, 0.118).rotation.z = 0.15;
+  add(head, sph(0.026), m.skin, 0, 0.17, 0.135).scale.set(0.9, 1, 0.9);
+  add(head, sph(0.022), m.blush, 0.075, 0.155, 0.105).scale.set(1, 0.6, 0.4);
+  add(head, sph(0.022), m.blush, -0.075, 0.155, 0.105).scale.set(1, 0.6, 0.4);
+  add(head, tor(0.022, 0.005, Math.PI).rotateZ(Math.PI), m.dark, 0, 0.13, 0.126);
+  const hat = pivot(head, 0, 0.3, 0);
+  const brim = add(hat, cyl(0.3, 0.31, 0.022, 32), m.hat, 0, 0, 0);
+  brim.scale.set(1, 1, 0.92);
+  add(hat, cyl(0.145, 0.17, 0.16, 28), m.hat, 0, 0.09, 0);
+  add(hat, rbox(0.2, 0.03, 0.05, 0.012), m.hat, 0, 0.17, 0).scale.set(1, 1, 1);
+  add(hat, cyl(0.173, 0.173, 0.045, 28), m.band, 0, 0.035, 0);
 
   const rig = { root, lean, body, torso, head, hat, pack, scarfA, scarfB };
   for (const side of [1, -1]) {
     const key = side === 1 ? 'L' : 'R';
-    const shoulder = pivot(torso, 0.25 * side, 0.44, 0);
-    add(shoulder, box(0.13, 0.28, 0.13), m.shirt, 0, -0.13, 0);
+    const shoulder = pivot(torso, 0.235 * side, 0.43, 0);
+    add(shoulder, sph(0.07), m.shirt, 0, -0.01, 0);
+    add(shoulder, cap(0.058, 0.17), m.shirt, 0, -0.13, 0);
+    add(shoulder, tor(0.058, 0.018).rotateX(Math.PI / 2), m.shirt, 0, -0.24, 0);
     const elbow = pivot(shoulder, 0, -0.27, 0);
-    add(elbow, box(0.11, 0.22, 0.11), m.skin, 0, -0.11, 0);
-    add(elbow, box(0.12, 0.05, 0.12), m.strap, 0, -0.17, 0);
-    add(elbow, box(0.1, 0.1, 0.11), m.skin, 0, -0.26, 0.01);
+    add(elbow, cap(0.05, 0.15), m.skin, 0, -0.1, 0);
+    add(elbow, cyl(0.055, 0.055, 0.04, 14), m.leather, 0, -0.16, 0);
+    const hand = add(elbow, sph(0.055), m.skin, 0, -0.25, 0.01);
+    hand.scale.set(0.85, 1.05, 0.9);
+    add(elbow, cap(0.018, 0.03), m.skin, side * -0.035, -0.23, 0.045).rotation.x = 0.6;
 
-    const hip = pivot(body, 0.1 * side, -0.05, 0);
-    add(hip, box(0.15, 0.42, 0.17), m.pants, 0, -0.21, 0);
-    add(hip, box(0.06, 0.12, 0.04), m.strap, 0.07 * side, -0.2, 0);
+    const hip = pivot(body, 0.095 * side, -0.05, 0);
+    add(hip, cap(0.078, 0.28), m.pants, 0, -0.2, 0);
+    add(hip, rbox(0.06, 0.1, 0.04, 0.015), m.patch, 0.07 * side, -0.2, 0.02);
     const knee = pivot(hip, 0, -0.42, 0);
-    add(knee, box(0.14, 0.3, 0.16), m.pants, 0, -0.15, 0);
+    add(knee, sph(0.07), m.pants, 0, 0, 0);
+    add(knee, cap(0.066, 0.2), m.pants, 0, -0.15, 0);
     const ankle = pivot(knee, 0, -0.36, 0);
-    add(ankle, box(0.16, 0.12, 0.17), m.boots, 0, 0.05, 0);
-    add(ankle, box(0.16, 0.08, 0.27), m.boots, 0, -0.04, 0.045);
-    add(ankle, box(0.165, 0.025, 0.28), m.sole, 0, -0.085, 0.045);
+    add(ankle, cyl(0.075, 0.072, 0.13, 18), m.boots, 0, 0.05, 0);
+    add(ankle, tor(0.074, 0.012).rotateX(Math.PI / 2), m.leather, 0, 0.11, 0);
+    add(ankle, rbox(0.15, 0.09, 0.26, 0.045), m.boots, 0, -0.035, 0.045);
+    add(ankle, rbox(0.155, 0.03, 0.27, 0.012), m.sole, 0, -0.08, 0.045);
+    add(ankle, rbox(0.06, 0.012, 0.08, 0.005), m.dark, 0, 0.012, 0.1);
 
     if (side === -1) {
       const lanternPivot = pivot(elbow, 0, -0.3, 0.02);
       const lantern = new THREE.Group();
       lanternPivot.add(lantern);
-      const metal = materials.toon(0x3b3530);
       const glass = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.95 });
       const piece = (geometry, material, x, y, z) => {
-        const mesh = new THREE.Mesh(flatShaded(geometry), material);
+        const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(x, y, z);
         mesh.castShadow = material !== glass;
         lantern.add(mesh);
         return mesh;
       };
-      piece(new THREE.TorusGeometry(0.05, 0.008, 4, 10, Math.PI), metal, 0, -0.02, 0);
-      piece(new THREE.ConeGeometry(0.075, 0.06, 6), metal, 0, -0.07, 0);
-      piece(new THREE.CylinderGeometry(0.05, 0.05, 0.12, 8), glass, 0, -0.16, 0);
+      piece(tor(0.05, 0.007, Math.PI), m.dark, 0, -0.02, 0);
+      piece(new THREE.ConeGeometry(0.075, 0.06, 16), m.dark, 0, -0.07, 0);
+      piece(sph(0.015), m.brass, 0, -0.035, 0);
+      piece(cyl(0.05, 0.05, 0.12, 16), glass, 0, -0.16, 0);
+      piece(sph(0.022), new THREE.MeshBasicMaterial({ color: 0xfff4c8 }), 0, -0.165, 0);
       for (let i = 0; i < 4; i++) {
         const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-        piece(new THREE.BoxGeometry(0.01, 0.13, 0.01), metal, Math.cos(a) * 0.055, -0.16, Math.sin(a) * 0.055);
+        piece(cyl(0.006, 0.006, 0.13, 6), m.dark, Math.cos(a) * 0.055, -0.16, Math.sin(a) * 0.055);
       }
-      piece(new THREE.CylinderGeometry(0.07, 0.065, 0.03, 8), metal, 0, -0.235, 0);
+      piece(cyl(0.07, 0.065, 0.03, 16), m.dark, 0, -0.235, 0);
       const light = new THREE.PointLight(0xffc877, 0, 14, 1.6);
       light.position.set(0, -0.16, 0);
       lanternPivot.add(light);

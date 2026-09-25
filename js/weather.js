@@ -137,9 +137,10 @@ class Weather {
       const sy = this.rainSeeds[i * 3 + 1];
       const sz = this.rainSeeds[i * 3 + 2];
       const fall = ((sy - this.time * 22) % 28 + 28) % 28;
-      const x = cameraPosition.x + sx + fall * lean * 3;
+      const ax = sx + fall * lean * 3;
+      const x = ax + 44 * Math.round((cameraPosition.x - ax) / 44);
       const y = cameraPosition.y - 8 + fall;
-      const z = cameraPosition.z + sz;
+      const z = sz + 44 * Math.round((cameraPosition.z - sz) / 44);
       this.rainPositions.set([x, y, z, x - lean * 0.8, y - 0.8, z], i * 6);
     }
     this.rainLines.geometry.setDrawRange(0, visible * 2);
@@ -157,9 +158,9 @@ class Weather {
       s[1] = field.seeds[i * 3 + 1];
       s[2] = field.seeds[i * 3 + 2];
       const [x, y, z] = motion(s, field.time);
-      field.positions[i * 3] = cameraPosition.x + (((x + 25) % 50) + 50) % 50 - 25;
+      field.positions[i * 3] = x + 50 * Math.round((cameraPosition.x - x) / 50);
       field.positions[i * 3 + 1] = cameraPosition.y - 6 + (((y % 24) + 24) % 24);
-      field.positions[i * 3 + 2] = cameraPosition.z + (((z + 25) % 50) + 50) % 50 - 25;
+      field.positions[i * 3 + 2] = z + 50 * Math.round((cameraPosition.z - z) / 50);
     }
     field.points.geometry.setDrawRange(0, visible);
     field.points.geometry.attributes.position.needsUpdate = true;

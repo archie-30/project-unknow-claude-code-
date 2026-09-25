@@ -144,6 +144,16 @@ js/main.js                 建立所有系統、暫停／繼續、發現判定�
 - 龍捲風：`Tornado.update` 回傳是否正在捲起玩家；捲起時主迴圈暫停玩家物理，直接設定位置與速度
 - `BIOME.LAKE`（原 OCEAN）：大湖泊；地形中其他小池塘仍屬周圍生態域
 
+## v2.1.02 補充
+
+- `index.html` 新增 `examples/js/geometries/RoundedBoxGeometry.js`，探險家與地標以圓角幾何建模
+- `DiscoveryMarker`（`js/ui.js`）：把新發現的生物投影到螢幕，畫出手繪 SVG 圓圈並加上發光精靈
+- 望遠鏡：`main.js` 的 `updateTelescope` 在第一人稱按住 V 時設定 `cameraRig.telescope`，鏡頭 FOV 縮到 16，移動鍵改為轉動視角（`input.suppressMove`）
+- `journal.onChange` 在開啟時暫停模擬並釋放指標鎖定；`frame` 在筆記開啟時不執行 `simulate`
+- `PauseMenu` 以數字鍵作為選項快捷鍵
+- 粒子位置以世界座標格點包覆（`x + size * round((center - x) / size)`），不再跟隨玩家
+- `Landmarks.inCell` 鄰格改用 150m 間距並嘗試 24 次；`SmokePlumes.add` 可指定煙的大小
+
 ## 效能重點
 
 - 每幀最多建 1 個區塊，跨區塊才重算需求；裝飾物用 `localSurface` 與生態域快取避免重算 noise

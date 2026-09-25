@@ -254,9 +254,25 @@ class Journal {
     this.revealTimers.forEach(clearTimeout);
     this.revealTimers = [];
     const cat = JOURNAL_PAGES[this.page].key;
-    [...this.store.unseen[cat]].forEach((id, i) => {
-      this.revealTimers.push(setTimeout(() => this.reveal(cat, id), delay + i * 650));
-    });
+    const order = [...this.pages[this.page].querySelectorAll('.biome-card')]
+      .map((card) => Number(card.dataset.id))
+      .filter((id) => this.store.unseen[cat].has(id));
+    const container = this.panel.querySelector('.journal-pages');
+    const step = (index) => {
+      if (!this.isOpen || index >= order.length) return;
+      const card = this.card(cat, order[index]);
+      const box = container.getBoundingClientRect();
+      const rect = card.getBoundingClientRect();
+      const hidden = rect.top < box.top || rect.bottom > box.bottom;
+      if (hidden) {
+        container.scrollTo({ top: container.scrollTop + rect.top - box.top - (box.height - rect.height) / 2, behavior: 'smooth' });
+      }
+      this.revealTimers.push(setTimeout(() => {
+        this.reveal(cat, order[index]);
+        this.revealTimers.push(setTimeout(() => step(index + 1), 1500));
+      }, hidden ? 650 : 0));
+    };
+    this.revealTimers.push(setTimeout(() => step(0), delay));
   }
 
   reveal(cat, id) {
@@ -281,6 +297,7 @@ class Journal {
     const open = force === undefined ? !this.isOpen : force;
     if (open === this.isOpen) return;
     this.isOpen = open;
+    if (this.onChange) this.onChange(open);
     this.panel.classList.toggle('open', open);
     this.button.classList.toggle('active', open);
     if (this.audio) this.audio.rustle();
@@ -295,6 +312,75 @@ class Journal {
       this.fresh.forEach((card) => card.classList.remove('fresh', 'unlocking'));
       this.fresh.clear();
       this.refresh();
+    }
+  }
+}
+
+class DiscoveryMarker {
+  constructor(scene) {
+    this.scene = scene;
+    this.el = document.getElementById('discover-marker');
+    this.el.innerHTML = `
+      <svg viewBox="-60 -60 120 120" aria-hidden="true">
+        <path class="mark-loop" d="M-44 -6 C -46 -34, -10 -50, 16 -46 C 42 -42, 52 -16, 48 8 C 44 34, 16 50, -10 48 C -38 46, -52 22, -46 -2 C -44 -14, -36 -26, -28 -32"/>
+        <path class="mark-loop second" d="M-40 4 C -38 -28, -6 -44, 20 -40 C 44 -34, 50 -6, 44 16 C 36 40, 8 50, -16 44 C -40 38, -48 16, -42 -8"/>
+      </svg>
+      <span class="mark-label"></span>`;
+    this.label = this.el.querySelector('.mark-label');
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 64;
+    const g = canvas.getContext('2d');
+    const radial = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    radial.addColorStop(0, 'rgba(255, 244, 200, 1)');
+    radial.addColorStop(0.4, 'rgba(255, 220, 140, 0.5)');
+    radial.addColorStop(1, 'rgba(255, 220, 140, 0)');
+    g.fillStyle = radial;
+    g.fillRect(0, 0, 64, 64);
+    this.glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 }));
+    this.glow.visible = false;
+    scene.add(this.glow);
+    this.target = null;
+    this.time = 0;
+    this.vector = new THREE.Vector3();
+  }
+
+  show(target, name, size = 1) {
+    this.target = target;
+    this.size = size;
+    this.time = 0;
+    this.label.textContent = `新物種 · ${name}`;
+    this.el.classList.remove('active');
+    void this.el.offsetWidth;
+    this.el.classList.add('active');
+    this.glow.visible = true;
+  }
+
+  update(dt, camera) {
+    if (!this.target) return;
+    this.time += dt;
+    const life = 3.6;
+    const fade = this.time < life - 0.6 ? 1 : clamp01((life - this.time) / 0.6);
+    this.target.getWorldPosition(this.vector);
+    this.vector.y += 0.35 * this.size;
+    this.glow.position.copy(this.vector);
+    const pulse = 1 + Math.sin(this.time * 6) * 0.12;
+    this.glow.scale.setScalar(this.size * 2.2 * pulse);
+    this.glow.material.opacity = Math.min(1, this.time * 3) * fade * 0.9;
+    const distance = camera.position.distanceTo(this.vector);
+    this.vector.project(camera);
+    const behind = this.vector.z > 1;
+    const x = (this.vector.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-this.vector.y * 0.5 + 0.5) * window.innerHeight;
+    const px = clamp((this.size * 1100) / Math.max(distance, 1), 70, 260);
+    this.el.style.transform = `translate(${x - px / 2}px, ${y - px / 2}px)`;
+    this.el.style.width = `${px}px`;
+    this.el.style.height = `${px}px`;
+    this.el.style.opacity = behind ? 0 : fade;
+    if (this.time > life) {
+      this.target = null;
+      this.glow.visible = false;
+      this.el.classList.remove('active');
+      this.el.style.opacity = 0;
     }
   }
 }

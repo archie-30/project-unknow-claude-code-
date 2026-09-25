@@ -47,9 +47,10 @@ const discoveries = new DiscoveryStore('endless-meadow.discoveries');
 const hud = new Hud();
 const journal = new Journal(discoveries, audio);
 const aurora = new Aurora(sky.group);
+const marker = new DiscoveryMarker(scene);
 const frost = document.getElementById('frost');
 
-world.onLandmarkLoad = (entry) => { if (entry.smoke) smoke.add(entry.lm.key, entry.smoke); };
+world.onLandmarkLoad = (entry) => { if (entry.smoke) smoke.add(entry.lm.key, entry.smoke, entry.smoke.size); };
 world.onLandmarkUnload = (entry) => smoke.remove(entry.lm.key);
 
 let paused = true;
@@ -104,9 +105,23 @@ function resume() {
   clock.getDelta();
 }
 
-cameraRig.onUnlock = () => pause();
+cameraRig.onUnlock = () => { if (!journal.isOpen) pause(); };
+journal.onChange = (open) => {
+  if (open) {
+    input.clear();
+    cameraRig.inputEnabled = false;
+    cameraRig.releaseLock();
+    audio.setPaused(true);
+  } else if (!paused) {
+    cameraRig.inputEnabled = true;
+    cameraRig.requestLock();
+    audio.setPaused(false);
+    clock.getDelta();
+  }
+};
 input.onEscape = () => {
-  if (!menu.isOpen) pause();
+  if (journal.isOpen) journal.toggle(false);
+  else if (!menu.isOpen) pause();
   else if (performance.now() - menu.openedAt > 350) resume();
 };
 input.onToggleJournal = () => { if (!paused) journal.toggle(); };
@@ -189,8 +204,11 @@ function updateDiscoveries(dt) {
     }
     landmarkVisits.set(lm.key, elapsed);
   }
-  animals.forEachVisible(camera, CONFIG.speciesDiscoverDistance, (animal) => discover('species', animal.species));
-  if (butterflies.items.some((item) => item.active && item.group.visible && item.distance < 7)) discover('species', SPECIES.BUTTERFLY);
+  animals.forEachVisible(camera, CONFIG.speciesDiscoverDistance, (animal) => {
+    if (discover('species', animal.species)) marker.show(animal.rig.root, SPECIES_INFO[animal.species].name, animal.species === SPECIES.DEER || animal.species === SPECIES.ANTELOPE ? 2.4 : 1);
+  });
+  const butterfly = butterflies.items.find((item) => item.active && item.group.visible && item.distance < 7);
+  if (butterfly && discover('species', SPECIES.BUTTERFLY)) marker.show(butterfly.group, SPECIES_INFO[SPECIES.BUTTERFLY].name, 0.6);
 
   let wet = 0;
   for (let i = 0; i < 8; i++) {
@@ -272,8 +290,32 @@ let elapsed = 0;
 let forestAmount = 0;
 const cameraTarget = new THREE.Vector3();
 
+const telescopeUi = document.getElementById('telescope');
+let telescopeWasOn = false;
+
+function updateTelescope(dt) {
+  cameraRig.telescope = input.keys.has('KeyV') && cameraRig.firstPerson;
+  const scoping = cameraRig.scope > 0.05;
+  input.suppressMove = scoping;
+  if (scoping) {
+    const turn = (input.keys.has('KeyD') ? 1 : 0) - (input.keys.has('KeyA') ? 1 : 0);
+    const tilt = (input.keys.has('KeyS') ? 1 : 0) - (input.keys.has('KeyW') ? 1 : 0);
+    cameraRig.yaw -= turn * dt * 0.5;
+    cameraRig.pitch = clamp(cameraRig.pitch + tilt * dt * 0.35, -1.3, CONFIG.camMaxPitch);
+    const heading = ((Math.round((-cameraRig.yaw + Math.PI) * 180 / Math.PI) % 360) + 360) % 360;
+    telescopeUi.querySelector('.scope-heading').textContent = `${['北', '東北', '東', '東南', '南', '西南', '西', '西北'][Math.round(heading / 45) % 8]} ${heading}°`;
+  }
+  const on = cameraRig.telescope && cameraRig.view > 0.95;
+  if (on !== telescopeWasOn) {
+    telescopeUi.classList.toggle('active', on);
+    audio.tone({ from: on ? 520 : 420, to: on ? 780 : 300, duration: 0.12, gain: 0.05 });
+    telescopeWasOn = on;
+  }
+}
+
 function simulate(dt) {
   elapsed += dt;
+  updateTelescope(dt);
   shaderTime.value = elapsed;
   accumulator += dt;
   const currentBiome = biomeTracker.current === null ? BIOME.MEADOW : biomeTracker.current;
@@ -333,7 +375,7 @@ function simulate(dt) {
   }
   fish.update(dt, pos, ripples, (from, distance) => {
     audio.distantSplash(distance);
-    if (distance < 26) discover('species', SPECIES.FISH);
+    if (distance < 26 && discover('species', SPECIES.FISH)) marker.show(fish.mesh, SPECIES_INFO[SPECIES.FISH].name, 0.8);
   });
   skyEvents.update(dt, pos, env);
   motes.update(dt, pos, env, biome);
@@ -366,12 +408,14 @@ function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.1);
   let env = timeOfDay.env;
-  if (!paused) env = simulate(dt);
+  if (!paused && !journal.isOpen) env = simulate(dt);
   else if (!env.skyTop.getHex()) env = timeOfDay.update(0, weather);
   const bob = cameraRig.firstPerson ? Math.sin(player.animator.phase * 2) * 0.012 * player.animator.gait : 0;
   cameraTarget.copy(player.renderPosition);
-  cameraRig.update(paused ? 0 : dt, cameraTarget, paused ? UP.clone().multiplyScalar(0) : player.velocity, bob, player.swimming);
+  const frozen = paused || journal.isOpen;
+  cameraRig.update(frozen ? 0 : dt, cameraTarget, frozen ? UP.clone().multiplyScalar(0) : player.velocity, bob, player.swimming);
   applyEnvironment(env);
+  marker.update(frozen ? 0 : dt, camera);
   shafts.update(paused ? 0 : dt, player.renderPosition, camera, env, forestAmount);
   sky.group.position.copy(camera.position);
   camera.updateMatrixWorld();

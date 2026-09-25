@@ -99,6 +99,9 @@ class CameraRig {
   }
 
   rotate(dYaw, dPitch) {
+    const zoom = lerp(1, 0.2, this.scope || 0);
+    dYaw *= zoom;
+    dPitch *= zoom;
     this.yaw -= dYaw;
     const min = this.viewTarget === 1 ? -1.3 : CONFIG.camMinPitch;
     this.pitch = clamp(this.pitch + dPitch, min, CONFIG.camMaxPitch);
@@ -124,7 +127,7 @@ class CameraRig {
 
   autoFollow(dt, velocity) {
     this.manualIdle += dt;
-    if (!this.autoFollowEnabled || this.viewTarget === 1) return;
+    if (!this.autoFollowEnabled || this.scope > 0.05) return;
     const speed = Math.hypot(velocity.x, velocity.z);
     if (this.manualIdle < CONFIG.autoCameraDelay || speed < 0.8) return;
     const behind = Math.atan2(velocity.x, velocity.z) + Math.PI;
@@ -172,7 +175,10 @@ class CameraRig {
     this.lookTarget.lerpVectors(this.focus, this.lookTarget, blend);
     this.camera.lookAt(this.lookTarget);
 
-    const fov = lerp(CONFIG.thirdPersonFov, CONFIG.firstPersonFov, blend);
+    this.scope = this.scope || 0;
+    const wantScope = this.telescope && this.viewTarget === 1 && this.view > 0.95;
+    this.scope = clamp01(this.scope + (wantScope ? dt / 0.35 : -dt / 0.25));
+    const fov = lerp(lerp(CONFIG.thirdPersonFov, CONFIG.firstPersonFov, blend), 16, smoothstep(0, 1, this.scope));
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();

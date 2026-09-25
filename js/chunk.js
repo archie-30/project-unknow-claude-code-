@@ -211,6 +211,7 @@ class Chunk {
         const c = Math.cos(lm.rotation);
         const s = Math.sin(lm.rotation);
         smoke = new THREE.Vector3(lm.x + built.smoke.x * c + built.smoke.z * s, built.floor + built.smoke.y, lm.z - built.smoke.x * s + built.smoke.z * c);
+        smoke.size = built.smoke.size || 1;
       }
       this.landmarks.push({ lm, meshes, smoke });
     }
