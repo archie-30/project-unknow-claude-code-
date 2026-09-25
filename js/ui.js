@@ -1,24 +1,62 @@
+const JOURNAL_PAGES = [
+  { key: 'biome', title: '生態域', infos: BIOME_INFO, sketches: () => BIOME_SKETCHES, hideName: false, locked: '尚未踏足' },
+  { key: 'landmark', title: '地標', infos: LANDMARK_INFO, sketches: () => LANDMARK_SKETCHES, hideName: true, locked: '尚未發現' },
+  { key: 'species', title: '物種', infos: SPECIES_INFO, sketches: () => SPECIES_SKETCHES, hideName: true, locked: '尚未遇見' },
+];
+
 class DiscoveryStore {
   constructor(key) {
     this.key = key;
-    this.found = new Set();
+    this.found = { biome: new Set(), landmark: new Set(), species: new Set() };
+    this.unseen = { biome: new Set(), landmark: new Set(), species: new Set() };
     try {
-      const saved = JSON.parse(localStorage.getItem(key) || '[]');
-      if (Array.isArray(saved)) saved.forEach((id) => this.found.add(id));
+      const saved = JSON.parse(localStorage.getItem(key) || 'null');
+      if (saved) {
+        for (const cat of Object.keys(this.found)) {
+          (saved.found?.[cat] || []).forEach((id) => this.found[cat].add(id));
+          (saved.unseen?.[cat] || []).forEach((id) => this.unseen[cat].add(id));
+        }
+      } else {
+        const legacy = JSON.parse(localStorage.getItem('endless-meadow.biomes') || '[]');
+        if (Array.isArray(legacy)) legacy.forEach((id) => this.found.biome.add(id));
+      }
     } catch (error) {}
   }
 
-  has(id) {
-    return this.found.has(id);
+  save() {
+    const plain = (sets) => Object.fromEntries(Object.entries(sets).map(([k, v]) => [k, [...v]]));
+    try {
+      localStorage.setItem(this.key, JSON.stringify({ found: plain(this.found), unseen: plain(this.unseen) }));
+    } catch (error) {}
   }
 
-  add(id) {
-    if (this.found.has(id)) return false;
-    this.found.add(id);
-    try {
-      localStorage.setItem(this.key, JSON.stringify([...this.found]));
-    } catch (error) {}
+  has(cat, id) {
+    return this.found[cat].has(id);
+  }
+
+  add(cat, id) {
+    if (this.found[cat].has(id)) return false;
+    this.found[cat].add(id);
+    this.unseen[cat].add(id);
+    this.save();
     return true;
+  }
+
+  markSeen(cat, id) {
+    this.unseen[cat].delete(id);
+    this.save();
+  }
+
+  get unseenCount() {
+    return Object.values(this.unseen).reduce((sum, set) => sum + set.size, 0);
+  }
+
+  reset() {
+    for (const cat of Object.keys(this.found)) {
+      this.found[cat].clear();
+      this.unseen[cat].clear();
+    }
+    this.save();
   }
 }
 
@@ -26,23 +64,39 @@ class Hud {
   constructor() {
     document.getElementById('version').textContent = 'version: ' + GAME_VERSION;
     this.banner = document.getElementById('biome-banner');
+    this.queue = [];
+    this.busy = false;
   }
 
-  showBiome(info, isNew) {
+  show(sub, name, isNew) {
+    this.queue.push({ sub, name, isNew });
+    if (!this.busy) this.next();
+  }
+
+  next() {
+    const item = this.queue.shift();
+    if (!item) {
+      this.busy = false;
+      return;
+    }
+    this.busy = true;
     this.banner.innerHTML = `
-      <span class="banner-sub">${isNew ? '發現新的生態域' : '進入生態域'}</span>
-      <span class="banner-name">${info.name}${isNew ? '<em class="new-tag">NEW</em>' : ''}</span>`;
+      <span class="banner-sub">${item.sub}</span>
+      <span class="banner-name">${item.name}${item.isNew ? '<em class="new-tag">NEW</em>' : ''}</span>`;
     this.banner.classList.remove('show');
     void this.banner.offsetWidth;
     this.banner.classList.add('show');
+    setTimeout(() => this.next(), this.queue.length ? 2600 : 3600);
   }
 }
 
 class Journal {
-  constructor(store) {
+  constructor(store, audio) {
     this.store = store;
-    this.fresh = new Set();
+    this.audio = audio;
     this.isOpen = false;
+    this.page = 0;
+    this.revealTimers = [];
     document.body.insertAdjacentHTML('beforeend', SKETCH_DEFS);
 
     this.button = document.getElementById('journal-button');
@@ -61,54 +115,114 @@ class Journal {
           <h2>探險筆記</h2>
           <p class="journal-progress"></p>
         </header>
-        <h3>生態域</h3>
-        <div class="biome-grid">
-          ${BIOME_INFO.map((info) => `
-            <article class="biome-card" data-biome="${info.id}">
-              <div class="sketch-frame">${BIOME_SKETCHES[info.id]}<em class="card-new">NEW</em></div>
-              <h4>${info.name}</h4>
-              <p class="card-text">${info.text}</p>
-              <p class="card-locked">尚未踏足</p>
-            </article>`).join('')}
-        </div>
-        <footer>按 Tab 或點擊捲軸圖示收起</footer>
+        <nav class="journal-tabs">
+          ${JOURNAL_PAGES.map((p, i) => `<button type="button" class="journal-tab" data-page="${i}">${p.title}<span class="tab-dot" hidden></span></button>`).join('')}
+        </nav>
+        ${JOURNAL_PAGES.map((p, i) => `
+          <section class="journal-page" data-page="${i}">
+            <div class="biome-grid">
+              ${p.infos.map((info) => `
+                <article class="biome-card" data-cat="${p.key}" data-id="${info.id}">
+                  <div class="sketch-frame">${p.sketches()[info.id]}<em class="card-new">NEW</em><span class="card-stamp">發現！</span></div>
+                  <h4 data-name="${info.name}">${p.hideName ? '？？？' : info.name}</h4>
+                  <p class="card-text">${info.text}</p>
+                  <p class="card-locked">${p.locked}</p>
+                </article>`).join('')}
+            </div>
+          </section>`).join('')}
+        <footer>Tab 收起 · ← → 或點書籤切換頁面</footer>
       </div>
       <div class="scroll-rod bottom"><span></span></div>`;
-    this.cards = new Map([...this.panel.querySelectorAll('.biome-card')].map((el) => [Number(el.dataset.biome), el]));
+    this.tabs = [...this.panel.querySelectorAll('.journal-tab')];
+    this.pages = [...this.panel.querySelectorAll('.journal-page')];
+    this.tabs.forEach((tab, i) => tab.addEventListener('click', () => this.showPage(i)));
     this.panel.addEventListener('click', (e) => e.stopPropagation());
+    this.fresh = new Set();
+    this.showPage(0, true);
     this.refresh();
   }
 
-  refresh() {
-    for (const [id, card] of this.cards) {
-      card.classList.toggle('found', this.store.has(id));
-      card.classList.toggle('fresh', this.fresh.has(id));
-    }
-    this.panel.querySelector('.journal-progress').textContent = `已探索 ${this.store.found.size} / ${BIOME_INFO.length}`;
-    this.badge.hidden = this.fresh.size === 0;
+  card(cat, id) {
+    return this.panel.querySelector(`.biome-card[data-cat="${cat}"][data-id="${id}"]`);
   }
 
-  markDiscovered(id) {
-    this.fresh.add(id);
+  refresh() {
+    for (const card of this.panel.querySelectorAll('.biome-card')) {
+      const cat = card.dataset.cat;
+      const id = Number(card.dataset.id);
+      const found = this.store.has(cat, id);
+      const pending = this.store.unseen[cat].has(id) && !card.classList.contains('unlocking');
+      card.classList.toggle('found', found);
+      card.classList.toggle('pending', pending);
+      const title = card.querySelector('h4');
+      const page = JOURNAL_PAGES.find((p) => p.key === cat);
+      title.textContent = found && !pending ? title.dataset.name : page.hideName ? '？？？' : title.dataset.name;
+    }
+    const page = JOURNAL_PAGES[this.page];
+    this.panel.querySelector('.journal-progress').textContent = `${page.title} 已記錄 ${this.store.found[page.key].size} / ${page.infos.length}`;
+    JOURNAL_PAGES.forEach((p, i) => { this.tabs[i].querySelector('.tab-dot').hidden = this.store.unseen[p.key].size === 0; });
+    this.badge.hidden = this.store.unseenCount === 0;
+  }
+
+  notify() {
     this.refresh();
     this.button.classList.remove('nudge');
     void this.button.offsetWidth;
     this.button.classList.add('nudge');
   }
 
+  showPage(index, silent = false) {
+    this.page = (index + JOURNAL_PAGES.length) % JOURNAL_PAGES.length;
+    this.tabs.forEach((tab, i) => tab.classList.toggle('active', i === this.page));
+    this.pages.forEach((page, i) => page.classList.toggle('active', i === this.page));
+    this.refresh();
+    if (!silent && this.audio) this.audio.rustle();
+    if (this.isOpen) this.scheduleReveal(360);
+  }
+
+  scheduleReveal(delay) {
+    this.revealTimers.forEach(clearTimeout);
+    this.revealTimers = [];
+    const cat = JOURNAL_PAGES[this.page].key;
+    [...this.store.unseen[cat]].forEach((id, i) => {
+      this.revealTimers.push(setTimeout(() => this.reveal(cat, id), delay + i * 650));
+    });
+  }
+
+  reveal(cat, id) {
+    if (!this.isOpen) return;
+    const card = this.card(cat, id);
+    if (!card) return;
+    this.store.markSeen(cat, id);
+    this.fresh.add(card);
+    card.classList.remove('pending');
+    card.classList.add('unlocking', 'fresh');
+    card.querySelector('h4').textContent = card.querySelector('h4').dataset.name;
+    if (this.audio) this.audio.chime();
+    setTimeout(() => card.classList.remove('unlocking'), 2400);
+    this.refresh();
+  }
+
+  step(direction) {
+    if (this.isOpen) this.showPage(this.page + direction);
+  }
+
   toggle(force) {
-    this.isOpen = force === undefined ? !this.isOpen : force;
-    this.panel.classList.toggle('open', this.isOpen);
-    this.button.classList.toggle('active', this.isOpen);
-    if (this.isOpen) {
+    const open = force === undefined ? !this.isOpen : force;
+    if (open === this.isOpen) return;
+    this.isOpen = open;
+    this.panel.classList.toggle('open', open);
+    this.button.classList.toggle('active', open);
+    if (this.audio) this.audio.rustle();
+    if (open) {
+      const withNew = JOURNAL_PAGES.findIndex((p) => this.store.unseen[p.key].size > 0);
+      if (withNew >= 0) this.showPage(withNew, true);
       this.refresh();
-      for (const id of this.fresh) {
-        const card = this.cards.get(id);
-        card.classList.remove('reveal');
-        void card.offsetWidth;
-        card.classList.add('reveal');
-      }
+      this.scheduleReveal(800);
     } else {
+      this.revealTimers.forEach(clearTimeout);
+      this.revealTimers = [];
+      this.fresh.forEach((card) => card.classList.remove('fresh', 'unlocking'));
       this.fresh.clear();
       this.refresh();
     }

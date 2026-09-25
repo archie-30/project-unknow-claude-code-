@@ -71,6 +71,7 @@ class Player {
     const canJump = !this.hasJumped && (this.grounded || this.timeSinceGrounded < CONFIG.coyoteTime);
     if (this.jumpBufferTimer > 0 && canJump) {
       this.velocity.y = CONFIG.jumpSpeed * (this.swimming ? 0.75 : 1);
+      this.jumped = true;
       this.grounded = false;
       this.swimming = false;
       this.hasJumped = true;

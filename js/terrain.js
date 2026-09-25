@@ -3,20 +3,20 @@ const Terrain = (() => {
   const cell = CONFIG.chunkSize / CONFIG.chunkSegments;
   const c = (hex) => new THREE.Color(hex);
   const groundPalette = {
-    [BIOME.MEADOW]: [c(0x9fcc6b), c(0x7fba5c), c(0x8cc262)],
-    [BIOME.FOREST]: [c(0x6ea856), c(0x5f9a4a), c(0x548c43)],
-    [BIOME.TAIGA]: [c(0x7f9c5e), c(0x6f8e56), c(0x88a468)],
-    [BIOME.SNOW]: [c(0xf2f5f8), c(0xe6eef4), c(0xf8f9f8)],
-    [BIOME.SAVANNA]: [c(0xcdc36b), c(0xbdb35f), c(0xd6cc7c)],
-    [BIOME.DESERT]: [c(0xecd49a), c(0xe2c687), c(0xf2dea8)],
+    [BIOME.MEADOW]: [c(0xa9c27f), c(0x93b36e), c(0x9fbb76)],
+    [BIOME.FOREST]: [c(0x7fa062), c(0x729558), c(0x6a8c52)],
+    [BIOME.TAIGA]: [c(0x8e9f6e), c(0x809366), c(0x97a878)],
+    [BIOME.SNOW]: [c(0xf3f1ec), c(0xe8eaea), c(0xf7f5f0)],
+    [BIOME.SAVANNA]: [c(0xd4c48a), c(0xc7b77c), c(0xdccd96)],
+    [BIOME.DESERT]: [c(0xecd8a8), c(0xe3cb95), c(0xf1e1b8)],
   };
   const special = {
-    seabed: c(0xc9b98a),
-    beach: c(0xe8d9a2),
-    dirt: c(0xb39a6b),
-    rock: c(0xa29d95),
-    coldRock: c(0x98a2a8),
-    sandstone: c(0xcf9a66),
+    seabed: c(0xcdbd92),
+    beach: c(0xecdfb8),
+    dirt: c(0xb89f7c),
+    rock: c(0xb3aca1),
+    coldRock: c(0xa6aaac),
+    sandstone: c(0xd3a578),
   };
 
   function noise(x, z) {

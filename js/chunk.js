@@ -19,6 +19,9 @@ class Chunk {
     this.group.add(this.terrain);
     this.water = this.buildWater(materials.water);
     if (this.water) this.group.add(this.water);
+    this.nearbyLandmarks = Landmarks.near(this.originX + CONFIG.chunkSize / 2, this.originZ + CONFIG.chunkSize / 2, CONFIG.chunkSize * 0.72 + 14);
+    this.landmarks = [];
+    this.buildLandmarks(materials);
     this.buildDecorations(materials, assets);
     this.box.min.set(this.originX, Math.min(this.minY, CONFIG.waterLevel) - 1, this.originZ);
     this.box.max.set(this.originX + CONFIG.chunkSize, this.maxY + 12, this.originZ + CONFIG.chunkSize);
@@ -147,9 +150,9 @@ class Chunk {
     const level = CONFIG.waterLevel;
     const positions = [];
     const colors = [];
-    const foam = [0.93, 0.98, 1.0, 0.85];
-    const shallow = [0.45, 0.83, 0.86, 0.62];
-    const deep = [0.16, 0.5, 0.72, 0.9];
+    const foam = [0.96, 0.97, 0.95, 0.85];
+    const shallow = [0.58, 0.83, 0.8, 0.6];
+    const deep = [0.3, 0.58, 0.7, 0.9];
 
     const pushVertex = (i, j) => {
       positions.push(i * cell, level, j * cell);
@@ -183,6 +186,45 @@ class Chunk {
     mesh.receiveShadow = true;
     mesh.renderOrder = 1;
     return mesh;
+  }
+
+  buildLandmarks(materials) {
+    for (const lm of this.nearbyLandmarks) {
+      if (Math.floor(lm.x / CONFIG.chunkSize) !== this.cx || Math.floor(lm.z / CONFIG.chunkSize) !== this.cz) continue;
+      const built = LandmarkBuilder.build(lm);
+      const mesh = new THREE.Mesh(built.geometry, materials.solid);
+      mesh.position.set(lm.x - this.originX, built.floor, lm.z - this.originZ);
+      mesh.rotation.y = lm.rotation;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.group.add(mesh);
+      const meshes = [mesh];
+      for (const extra of built.extras) {
+        const child = new THREE.Mesh(extra.geometry, materials.solid);
+        child.position.set(...extra.position);
+        child.rotation.y = extra.rotationY;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        mesh.add(child);
+        meshes.push(child);
+      }
+      this.colliders.push(...built.colliders);
+      this.maxY = Math.max(this.maxY, built.floor + 6);
+      let smoke = null;
+      if (built.smoke) {
+        const c = Math.cos(lm.rotation);
+        const s = Math.sin(lm.rotation);
+        smoke = new THREE.Vector3(lm.x + built.smoke.x * c + built.smoke.z * s, built.floor + built.smoke.y, lm.z - built.smoke.x * s + built.smoke.z * c);
+      }
+      this.landmarks.push({ lm, meshes, smoke });
+    }
+  }
+
+  clearedByLandmark(x, z) {
+    for (const lm of this.nearbyLandmarks) {
+      if (Math.hypot(x - lm.x, z - lm.z) < lm.clear) return true;
+    }
+    return false;
   }
 
   pickDecor(height, normalY, biome, forest, roll) {
@@ -255,6 +297,7 @@ class Chunk {
         const lx = (gi + rng()) * spacing;
         const lz = (gj + rng()) * spacing;
         const roll = rng(), r1 = rng(), r2 = rng(), r3 = rng(), r4 = rng();
+        if (this.nearbyLandmarks.length && this.clearedByLandmark(this.originX + lx, this.originZ + lz)) continue;
         this.localSurface(lx, lz, surface);
         const forest = 0.4 + 1.2 * smoothstep(-0.2, 0.6, Terrain.noise((this.originX + lx) * 0.008 + 900, (this.originZ + lz) * 0.008 - 300));
         const typeName = this.pickDecor(surface.height, surface.normalY, this.biomeNear(lx, lz), forest, roll);
@@ -269,6 +312,7 @@ class Chunk {
         const lx = (gi + rng()) * coverSpacing;
         const lz = (gj + rng()) * coverSpacing;
         const roll = rng(), r1 = rng(), r2 = rng(), r3 = rng(), r4 = rng();
+        if (this.nearbyLandmarks.length && this.clearedByLandmark(this.originX + lx, this.originZ + lz)) continue;
         this.localSurface(lx, lz, surface);
         const typeName = this.pickGroundCover(surface.height, surface.normalY, this.biomeNear(lx, lz), roll);
         if (typeName) place(typeName, lx, lz, r1, r2, r3, r4);
@@ -310,6 +354,7 @@ class Chunk {
   }
 
   dispose() {
+    for (const { meshes } of this.landmarks) meshes.forEach((m) => m.geometry.dispose());
     this.terrain.geometry.dispose();
     if (this.water) this.water.geometry.dispose();
     for (const mesh of this.decorMeshes) mesh.dispose();

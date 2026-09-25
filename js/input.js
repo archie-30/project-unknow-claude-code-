@@ -3,19 +3,47 @@ class Input {
     this.keys = new Set();
     this.jumpQueued = false;
     this.onToggleJournal = null;
-    const handled = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'Space', 'Tab']);
+    this.onView = null;
+    this.onEscape = null;
+    this.onPage = null;
+    const movement = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'Space']);
     window.addEventListener('keydown', (e) => {
-      if (!handled.has(e.code)) return;
-      e.preventDefault();
-      if (e.code === 'Tab') {
-        if (!e.repeat && this.onToggleJournal) this.onToggleJournal();
-        return;
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+      switch (e.code) {
+        case 'Tab':
+          e.preventDefault();
+          if (!e.repeat && this.onToggleJournal) this.onToggleJournal();
+          return;
+        case 'Escape':
+          if (!e.repeat && this.onEscape) this.onEscape();
+          return;
+        case 'Digit1':
+        case 'Numpad1':
+          if (this.onView) this.onView(true);
+          return;
+        case 'Digit3':
+        case 'Numpad3':
+          if (this.onView) this.onView(false);
+          return;
+        case 'ArrowLeft':
+        case 'ArrowRight':
+          if (this.onPage) this.onPage(e.code === 'ArrowRight' ? 1 : -1);
+          return;
+        default:
+          break;
       }
+      if (!movement.has(e.code)) return;
+      e.preventDefault();
       if (e.code === 'Space' && !e.repeat) this.jumpQueued = true;
       this.keys.add(e.code);
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
+  }
+
+  clear() {
+    this.keys.clear();
+    this.jumpQueued = false;
   }
 
   axis() {

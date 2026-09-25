@@ -47,13 +47,23 @@ class Butterflies {
         this.respawn(item, center);
         if (!item.active) continue;
       }
+      const awayX = item.group.position.x - center.x;
+      const awayZ = item.group.position.z - center.z;
+      const near = Math.hypot(awayX, awayZ);
+      item.distance = near;
+      if (near < 4) {
+        item.anchor.x += (awayX / (near + 0.01)) * dt * 6;
+        item.anchor.z += (awayZ / (near + 0.01)) * dt * 6;
+        item.boost = 1;
+      }
+      item.boost = Math.max(0, (item.boost || 0) - dt * 0.5);
       const t = time * item.speed + item.phase;
       item.anchor.x += Math.sin(t * 0.13) * dt * 0.6;
       item.anchor.z += Math.cos(t * 0.11) * dt * 0.6;
       const x = item.anchor.x + Math.sin(t * 0.7) * 2.2 + Math.sin(t * 1.9) * 0.5;
       const z = item.anchor.z + Math.cos(t * 0.6) * 2.2 + Math.cos(t * 1.7) * 0.4;
       const ground = Math.max(Terrain.heightAt(x, z), CONFIG.waterLevel);
-      const y = ground + 0.8 + Math.sin(t * 2.3) * 0.35;
+      const y = ground + 0.8 + Math.sin(t * 2.3) * 0.35 + item.boost * 1.5;
       const g = item.group;
       const heading = Math.atan2(x - g.position.x, z - g.position.z);
       if (Number.isFinite(heading)) g.rotation.y = heading;

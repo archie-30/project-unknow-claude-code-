@@ -20,6 +20,7 @@ function createExplorer(materials) {
     const mesh = new THREE.Mesh(flatShaded(geometry), material);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
+    mesh.layers.set(1);
     parent.add(mesh);
     return mesh;
   };
@@ -121,6 +122,10 @@ class ExplorerAnimator {
     this.lookTarget = 0;
     this.air = 0;
     this.swim = 0;
+    this.lastStep = 0;
+    this.onStep = null;
+    this.gait = 0;
+    this.headTurn = 0;
   }
 
   joint(object, axis, target, dt, k) {
@@ -140,6 +145,13 @@ class ExplorerAnimator {
     this.air = damp(this.air, !s.grounded && !s.swimming ? 1 : 0, 12, dt);
     this.swim = damp(this.swim, s.swimming ? 1 : 0, 6, dt);
     if (s.landImpact > 0) this.bob.velocity -= Math.min(4.5, s.landImpact * 0.32);
+
+    this.gait = gait;
+    const stepIndex = Math.floor(this.phase / Math.PI);
+    if (stepIndex !== this.lastStep) {
+      this.lastStep = stepIndex;
+      if (this.onStep && s.grounded && !s.swimming && gait > 0.3) this.onStep(stepIndex % 2 === 0 ? 1 : -1, run);
+    }
 
     const p = this.phase;
     const sn = Math.sin(p);
@@ -230,13 +242,13 @@ class ExplorerAnimator {
     const lean = this.lean.update(t.lean + crouch * 1.5, dt, 2.2, 0.6);
     r.torso.rotation.x = lean;
     this.joint(r.head, 'x', -lean * 0.65 - crouch * 0.5, dt, 10);
-    this.joint(r.head, 'y', -t.torsoYaw * 0.85 + t.headYaw, dt, 5);
+    this.headTurn = damp(this.headTurn, clamp(s.turnRate * 0.18, -0.45, 0.45) * (1 - this.swim), 6, dt);
+    this.joint(r.head, 'y', -t.torsoYaw * 0.85 + t.headYaw + this.headTurn, dt, 5);
 
     const bob = this.bob.update(t.bob, dt, 3.4, 0.42);
     r.body.position.y = 0.95 + bob;
 
-    const roll = this.roll.update(clamp(-s.turnRate * s.speed * 0.03, -0.3, 0.3) * (1 - this.swim), dt, 1.6, 0.7);
-    r.lean.rotation.z = roll;
+    r.lean.rotation.z = 0;
 
     this.pack.update(clamp(-this.bob.velocity * 0.35 + run * 0.08, -0.3, 0.35), dt, 2.8, 0.28);
     r.pack.rotation.x = this.pack.value;

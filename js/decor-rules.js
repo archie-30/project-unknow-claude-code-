@@ -2,11 +2,13 @@ const DECOR_TYPES = {
   pine: { asset: 'pine', scale: [0.8, 1.4], trunk: 0.22, tree: true },
   snowPine: { asset: 'snowPine', scale: [0.8, 1.4], trunk: 0.22, tree: true },
   broadleaf: { asset: 'broadleaf', scale: [0.8, 1.3], trunk: 0.26, tree: true },
+  blossomTree: { asset: 'blossomTree', scale: [0.8, 1.2], trunk: 0.26, tree: true },
   birch: { asset: 'birch', scale: [0.85, 1.25], trunk: 0.17, tree: true },
   acacia: { asset: 'acacia', scale: [0.9, 1.3], trunk: 0.2, tree: true },
   cactus: { asset: 'cactus', scale: [0.8, 1.3], trunk: 0.34 },
   bush: { asset: 'bush', scale: [0.7, 1.3] },
   berryBush: { asset: 'berryBush', scale: [0.7, 1.2] },
+  blossomBush: { asset: 'blossomBush', scale: [0.7, 1.3] },
   deadBush: { asset: 'deadBush', scale: [0.7, 1.3], detail: true },
   grass: { asset: 'grass', scale: [0.8, 1.4], detail: true },
   dryGrass: { asset: 'dryGrass', scale: [0.8, 1.4], detail: true },
@@ -24,8 +26,8 @@ const DECOR_TYPES = {
 };
 
 const BIOME_DECOR = {
-  [BIOME.MEADOW]: [['grass', 0.26], ['flowersWarm', 0.09], ['flowersCool', 0.08], ['bush', 0.04], ['berryBush', 0.02], ['broadleaf', 0.035], ['birch', 0.02], ['rock', 0.02], ['boulder', 0.006], ['pebbles', 0.03]],
-  [BIOME.FOREST]: [['broadleaf', 0.2], ['birch', 0.07], ['pine', 0.03], ['bush', 0.07], ['berryBush', 0.03], ['mushrooms', 0.06], ['fern', 0.16], ['log', 0.02], ['rock', 0.025]],
+  [BIOME.MEADOW]: [['grass', 0.26], ['flowersWarm', 0.09], ['flowersCool', 0.08], ['bush', 0.03], ['berryBush', 0.02], ['blossomBush', 0.03], ['broadleaf', 0.025], ['blossomTree', 0.02], ['birch', 0.02], ['rock', 0.02], ['boulder', 0.006], ['pebbles', 0.03]],
+  [BIOME.FOREST]: [['broadleaf', 0.18], ['blossomTree', 0.03], ['birch', 0.07], ['pine', 0.03], ['bush', 0.06], ['blossomBush', 0.015], ['berryBush', 0.03], ['mushrooms', 0.06], ['fern', 0.16], ['log', 0.02], ['rock', 0.025]],
   [BIOME.TAIGA]: [['pine', 0.24], ['rock', 0.05], ['boulder', 0.012], ['bush', 0.03], ['fern', 0.06], ['grass', 0.08], ['log', 0.02], ['mushrooms', 0.025]],
   [BIOME.SNOW]: [['snowPine', 0.1], ['snowRock', 0.06], ['pebbles', 0.02]],
   [BIOME.SAVANNA]: [['dryGrass', 0.3], ['acacia', 0.035], ['deadBush', 0.05], ['rock', 0.025], ['boulder', 0.008], ['pebbles', 0.03]],

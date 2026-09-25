@@ -21,87 +21,105 @@
 ## 檔案結構（依載入順序）
 
 ```
-index.html                 頁面骨架：提示框、生態域橫幅、版本號、捲軸按鈕與面板容器、script 載入順序
-css/style.css              所有 UI 樣式與捲軸簡圖動畫 keyframes
-js/config.js               GAME_VERSION、CONFIG（所有可調參數）、SUN_DIRECTION、BIOME、BIOME_INFO（名稱與描述）
-js/utils.js                mulberry32、hash2、smoothstep、clamp、lerp、damp、wrapAngle、Spring（彈簧）、WORLD_SEED
-js/terrain.js              Terrain：高度函數、三角形內插、生態域判定、地面顏色
-js/materials.js            shaderTime、gradientMap、addWind（植物搖擺）、addWaves（水波）、createMaterials、flatShaded、jitterVertices
-js/models.js               Models（所有植物／石頭／雲的幾何體）、createDecorAssets
-js/decor-rules.js          DECOR_TYPES（每種物件的縮放、碰撞、細節旗標）、BIOME_DECOR（4m 主物件機率）、GROUND_COVER（2m 地被機率）
-js/environment.js          createSky（漸層天空＋太陽光暈）、createLights（環境光＋太陽陰影跟隨）、Clouds
-js/chunk.js                Chunk：單一區塊的地形、水面、裝飾物、碰撞體
-js/world.js                World：區塊載入／卸載佇列、剔除、碰撞查詢
-js/wildlife.js             Butterflies、Birds
+index.html                 頁面骨架：生態域橫幅、版本號、捲軸按鈕、暫停按鈕、捲軸與選單容器、script 載入順序
+css/style.css              所有 UI 樣式、紙張紋理疊加、捲軸／選單、簡圖動畫 keyframes
+js/config.js               GAME_VERSION、CONFIG、BIOME／LANDMARK／SPECIES 與各自的名稱描述
+js/utils.js                mulberry32、hash2、smoothstep、clamp、lerp、damp、wrapAngle、Spring、WORLD_SEED
+js/terrain.js              Terrain：高度函數、三角形內插、生態域判定、地面顏色（紙藝配色）
+js/materials.js            shaderTime／shaderWind／shaderPlayer、柔和 gradientMap、addWind（搖擺＋被角色推開）、addWaves
+js/models.js               PAPER 色票、Models（紙葉、剪紙松樹、花、灌木…）、createDecorAssets
+js/decor-rules.js          DECOR_TYPES、BIOME_DECOR、GROUND_COVER
+js/environment.js          createSky（天空 shader、太陽、月亮、星星）、createHorizon（三層剪紙遠山）、createLights、Clouds
+js/daynight.js             TimeOfDay：時間推進、關鍵影格插值 → env（天空色、光色、光方向、霧色、夜晚係數…）
+js/weather.js              Weather：天氣狀態機、雨／雪／沙塵粒子、彩虹
+js/landmarks.js            Landmarks（擺放規則）、LandmarkBuilder（飛機、小木屋模型與方塊碰撞體）、SmokePlumes
+js/chunk.js                Chunk：地形、水面、地標、裝飾物、碰撞體
+js/world.js                World：區塊佇列、剔除、圓形與方塊碰撞
+js/wildlife.js             Butterflies（會飛散）、Birds（高空盤旋）
+js/animals.js              AnimalModels（8 種紙藝動物）、ANIMAL_TYPES、Animal（行為與動畫）、AnimalManager
 js/effects.js              Ripples（水面漣漪池）
-js/explorer.js             createExplorer（角色模型骨架）、ExplorerAnimator（程序動畫）
-js/input.js                Input：鍵盤狀態、跳躍佇列、Tab 回呼
-js/player.js               Player：物理、游泳、落地／入水事件、面向與轉向速度
-js/camera.js               CameraRig：Pointer Lock、拖曳／觸控、自動跟隨、地形／水面碰撞
-js/journal-sketches.js     六種生態域的 SVG 手繪簡圖、手繪抖動濾鏡、捲軸圖示
-js/ui.js                   DiscoveryStore（localStorage 紀錄）、Hud（版本號、生態域橫幅）、Journal（捲軸）
-js/main.js                 建立所有物件、生態域追蹤、漣漪觸發、主迴圈
-practice/01-basic-scene.html   練習 01
-CHANGELOG.md               更新日誌與版本號規則
+js/particles.js            Footprints、DustPuffs、AirMotes（花粉／螢火蟲）、FallingLeaves、LightShafts、FishJumps、SkyEvents（流星、候鳥）
+js/explorer.js             createExplorer（layer 1，第一人稱時隱藏）、ExplorerAnimator（含 onStep 腳步事件）
+js/input.js                Input：移動鍵、Tab、Esc、1／3、← →
+js/player.js               Player：物理、游泳、跳躍／落地／入水事件
+js/camera.js               CameraRig：Pointer Lock、拖曳、自動跟隨、第一／第三人稱切換與過渡
+js/audio.js                AudioEngine：Web Audio 即時合成環境音與音效
+js/journal-sketches.js     SketchKit、生態域簡圖、手繪濾鏡、捲軸圖示
+js/sketches-extra.js       地標與物種簡圖
+js/ui.js                   JOURNAL_PAGES、DiscoveryStore、Hud（橫幅佇列）、Journal（分頁與解鎖動畫）
+js/menu.js                 DEFAULT_SETTINGS、QUALITY_PRESETS、Settings、PauseMenu
+js/main.js                 建立所有系統、暫停／繼續、發現判定、腳步與漣漪事件、主迴圈
 ```
 
 ## 操作
 
 | 輸入 | 動作 |
 | --- | --- |
-| 點擊畫面 | 鎖定並隱藏滑鼠，移動滑鼠轉視角（不支援鎖定的裝置改為按住拖曳） |
-| Esc | 釋放滑鼠，畫面中央出現操作提示 |
-| WASD | 以鏡頭方向為基準移動 |
-| 按住 E | 跑步（刻意不用 Shift，避免平板切換輸入法） |
-| 空白鍵 | 跳躍（落地或游泳時才能再跳） |
-| Tab ／ 點左下捲軸圖示 | 開關探險筆記 |
+| 開始畫面「開始探險」／點擊畫面 | 鎖定並隱藏滑鼠，移動滑鼠轉視角 |
+| Esc ／ 右上角暫停鈕 | 暫停選單（設定、操作說明、重置紀錄） |
+| WASD | 移動 |
+| 按住 E | 跑步（刻意不用 Shift） |
+| 空白鍵 | 跳躍 |
+| 1 ／ 3 | 第一人稱 ／ 第三人稱 |
+| Tab ／ 左下捲軸圖示 | 探險筆記；← → 或點書籤切換分頁 |
 | 滾輪 ／ 雙指捏合 | 鏡頭距離 |
-| 觸控單指拖曳 | 轉視角 |
+| 觸控或未鎖定時按住拖曳 | 轉視角 |
 | 網址加 `?seed=數字` | 固定世界種子 |
 
 ## 各模組重點
 
-### 地形 `Terrain`
-- `sampleHeight`：丘陵度遮罩 × fbm 細節 + 寬緩起伏 + 山脊（丘陵區）− 湖盆（平原區）
-- `interpolate / surfaceAt / heightAt`：與網格相同切法（(00,11,10)、(00,01,11)）的三角形內插，角色、鏡頭、裝飾物都貼合實際網格
-- `biomeAt`：溫度（低頻 noise − 海拔降溫）＋濕度 → 雪原、針葉林、沙漠、莽原、森林、草原
-- `colorAt`：水下沙床、沙灘、陡坡岩石（含層理條紋）、泥土、各生態域三色地面，邊界加雜湊抖動
+### 畫風（紙藝）
+- `createGradientMap`：6 格 LinearFilter 柔和漸層（非硬邊 toon）
+- 所有植物用 `Models.leafGeometry`（沿中脈對摺的紙葉）＋ `scatterLeaves`（費氏球面分布、下方較暗）組成；`part()` 可傳 `shadeFn` 烘焙頂點明暗
+- 裝飾物材質 `DoubleSide`；陰影 `PCFSoftShadowMap`（中／低畫質改 PCF）
+- `body::after` 紙纖維＋暗角疊加（CSS，不進 WebGL）
 
-### 區塊 `Chunk`（48m × 48m，1.5m 格點）
-- `sampleHeights`：多取一圈外框格點 → 可算曲率且不必重算 noise
-- `buildTerrain`：平面著色三角形；顏色 × 曲率明暗（山脊亮、凹處暗）
-- `buildWater`：只在有水的格子生成水面；頂點 RGBA 依水深（泡沫 → 淺綠 → 深藍）；材質 `addWaves` 在頂點著色器做波浪，`flatShading` 用導數算面法線呈現低多邊形水面
-- `buildBiomeGrid / biomeNear`：4m 解析度的生態域快取
-- `localSurface`：用快取格點計算高度（不再呼叫 noise）
-- `buildDecorations`：4m 抖動格點放主物件（樹、石、灌木…）＋ 2m 抖動格點放地被（草、花、蕨…）；同資產合併成一個 `InstancedMesh`；小物件放 `detailGroup`（只在周圍 2 格顯示、不投影）
-- 建一個區塊約 6ms（軟體渲染測試環境），每幀最多一個
+### 日夜、天氣與環境
+- `TimeOfDay.update(dt, weather)` 產生 `env`：天空頂／地平線色、光色與強度、半球光、雲色、太陽／月亮方向、`night`／`daylight`，再疊加天氣（陰天變灰、光變弱、霧／沙塵改霧色）
+- `env` 被 `sky`、`horizon`、`lights`、`clouds`、霧、粒子、音效共用
+- 光源方向夜晚改用月亮；仰角最低限制 0.22 避免陰影拉太長
+- `Weather`：狀態 `clear／cloudy／rain／fog／windy`，每 90～220 秒換一次，所有數值 12 秒漸變；降水依生態域換成雨／雪／沙塵；雨停且白天時出現彩虹 70 秒
 
-### 世界 `World`
-跨區塊才重算：卸載 5 格外、依「位置＋速度預測」排序生成、周圍 1 格投影、2 格顯示細節；`cull` 做區塊視錐剔除；`groundHeight / resolveObstacles` 提供碰撞。
+### 地形與區塊
+- `Terrain` 與先前相同（高度、三角形內插、生態域），配色改紙藝色調
+- `Chunk`：高度格點多取一圈外框（曲率明暗）、4m 生態域快取、每區塊水面、地標模型與碰撞、地標周圍清空植物
+- `World`：碰撞體支援 `circle`（樹幹、石頭）與 `box`（有旋轉、可設定 `walkable` 頂面）
 
-### 角色 `createExplorer` / `ExplorerAnimator`
-- 骨架：`root → lean（轉彎傾斜）→ body（骨盆，高 0.95）→ torso → head → hat`；`torso → shoulder → elbow`；`body → hip → knee → ankle`；`torso → pack`、`scarfA/B`
-- 動畫：每幀依狀態算出「地面／空中／游泳」三組目標姿勢，用 `air`、`swim` 權重混合後以 `damp` 趨近
-  - 地面：`phase` 依移動距離 ÷ 步長推進；走跑用 `run` 權重混合步幅；骨盆與軀幹反向扭轉、重心左右轉移、`cos²` 上下起伏、腳踝補償讓腳掌貼地
-  - 待機：呼吸、重心搖擺、隨機張望
-  - 彈簧（`Spring`）：`bob`（落地下蹲回彈）、`lean`（加減速前後傾）、`roll`（轉彎內傾）、`pack`、`scarf`、`hat`
+### 地標 `Landmarks` / `LandmarkBuilder`
+- 世界切成 360m 格子，每格 75% 機率一個地標，位置需平坦且不在水中；出生格保證在 70～100m 處有一個，相鄰四格放另一種類型
+- 模型建在地標本地座標（小木屋以地板高度為 0、飛機以地面為 0），整棟合併為單一幾何體（`materials.solid`，頂點色）
+- 碰撞：小木屋四面牆（門口留空）、地板、玄關、台階、煙囪、柴堆；飛機機身、機翼、斷翼可站上去
+- 飛機引擎冒煙（`SmokePlumes`），區塊載入時開始、卸載時移除
 
-### 玩家 `Player`
-120Hz 固定步長物理＋渲染內插；加速度移動、上坡減速、水深減速；跳躍緩衝＋coyote time；水深超過游泳深度時漂浮；記錄 `landImpact`（給動畫）與 `splash`（給漣漪）；`turnRate` 給轉彎傾斜。
+### 動物 `AnimalManager`
+- 每 1.2 秒嘗試在玩家 32～66m 外依生態域（或水面）生成一群，總數上限依畫質
+- `Animal`：`idle／walk／flee` 狀態機，靠近到 `fleeDistance` 就往反方向逃；不會走進水（野鴨相反）；距離 95m 外移除
+- 步態動畫：`walk`（四腳對角擺動、吃草低頭）、`hop`（兔、松鼠）、`scurry`（蜥蜴扭動）、`swim`（野鴨浮動、潛頭）、`bird`（麻雀啄食，驚飛後 7 秒消失）
 
-### 鏡頭 `CameraRig`
-- 桌機點擊 → Pointer Lock；失敗（`pointerlockerror`）或觸控裝置 → 拖曳模式
-- `autoFollow`：手動操作後 `autoCameraDelay` 秒起，移動時把 yaw 平滑轉向「移動方向的背後」（面向鏡頭跑時不轉，避免甩鏡頭）；閒置久了俯仰角回到 `autoCameraPitch`
-- 碰撞：沿鏡頭方向 28 段取樣，地面取地形與水面的較高者
+### 反應與粒子 `particles.js`
+- `onStep` → 腳步聲、腳印（沙／雪）、跑步塵土；`landImpact` → 落地聲與塵土；`splash` → 入水聲與漣漪
+- 草的推擠在 `addWind` 的頂點著色器內完成（`uPlayer`，只影響 `sway > 0` 的頂點）
+- `FishJumps`：附近深水區每 5～14 秒一次；`SkyEvents`：夜晚流星、白天候鳥群
 
-### 介面 `ui.js`
-- `DiscoveryStore`：`localStorage` 鍵 `endless-meadow.biomes`（讀寫都包 try/catch）
-- `Hud.showBiome`：重播 CSS 動畫顯示生態域名稱與 NEW
-- `Journal`：`toggle`（Tab／按鈕）、`markDiscovered`（紅點、NEW、下次打開播放點亮動畫）；未發現的卡片用 CSS `filter` 呈現咖啡色素描並暫停動畫，發現後 `filter: none` 漸變為彩色
-- 生態域判定在 `main.js`：每 0.2 秒取樣，新生態域持續 0.6 秒才切換（避免邊界來回閃）
+### 角色與鏡頭
+- 動畫移除全身側傾，改頭部微轉；`onStep(side, run)` 給音效與腳印
+- `CameraRig.setView(firstPerson)`：`view` 在 0.7 秒內 0↔1，鏡頭位置由第三人稱位置插值到眼睛高度，看向目標也插值，FOV 60→72；`blend > 0.8` 時關閉 layer 1 隱藏角色（陰影相機仍開啟 layer 1，所以影子還在）；第一人稱不自動跟隨
 
-### 主迴圈 `frame()`
-shaderTime → 固定步長物理 → 角色動畫 → 區塊 → 鏡頭 → 太陽 → 蝴蝶／鳥／雲 → 漣漪 → 生態域判定 → 天空跟隨 → 剔除 → render
+### 探險筆記 `Journal`
+- `DiscoveryStore`（`localStorage: endless-meadow.discoveries`）：三類 `found` 與 `unseen`，舊版生態域紀錄會自動匯入
+- 打開捲軸：翻到有 `unseen` 的第一頁 → 0.8 秒後逐張 `reveal()`（`unlocking` 動畫：墨線暈染成彩色、發光、印章）→ `markSeen`
+- 未看過的卡片維持素描樣式（`.pending`），所以即使在捲軸關閉時解鎖，也一定能在打開時看到動畫
+
+### 音效 `AudioEngine`
+- 第一次按「開始探險」才建立 AudioContext（瀏覽器規定）
+- 環境：風（棕噪音帶通＋LFO）、雨（白噪音）、水邊（低通噪音＋振幅 LFO），依 `update()` 傳入的狀態平滑調整；鳥鳴、蟲鳴、貓頭鷹用排程器隨機觸發
+- 音效：`footstep(surface)`、`jump`、`land`、`splash`、`flutter`、`rustle`、`chime`、`click`
+- 匯流排：master → ambient／sfx，對應設定中的三個音量
+
+### 選單與設定 `menu.js`
+- `Settings`（`localStorage: endless-meadow.settings`）；平板首次預設「中」畫質
+- `QUALITY_PRESETS` 控制像素比、陰影貼圖大小、柔邊陰影、細節距離、動物數量
+- 暫停時物理、時間、天氣全部停止，只繼續渲染
 
 ## 如何新增內容
 
@@ -121,16 +139,19 @@ shaderTime → 固定步長物理 → 角色動畫 → 區塊 → 鏡頭 → 太
 
 ### 已完成
 - [x] 無限區塊地形、六種生態域、湖泊與水面效果
-- [x] 植物／石頭約 20 種、地被層、風吹搖擺；蝴蝶、鳥群、雲
-- [x] 探險家角色與程序動畫（待機／走／跑／跳／游泳、彈簧次級動作）
-- [x] 物理：走、跑、跳、游泳、碰撞、站上石頭／倒木
-- [x] 鏡頭：Pointer Lock、拖曳、觸控、自動跟隨、地形與水面碰撞
-- [x] 探險筆記捲軸（生態域圖鑑）、生態域進入提示、版本號、更新日誌
+- [x] 紙藝畫風：紙葉植物、柔和光影、紙紋理、剪紙遠山、天空 shader
+- [x] 日夜循環、天氣（雨／雪／沙塵／霧／強風）、彩虹、星空、螢火蟲
+- [x] 世界反應：草被推開、腳印、塵土、蝴蝶飛散、麻雀驚飛、魚躍
+- [x] 8 種動物與行為；流星、候鳥群、落葉、光束、花粉
+- [x] 地標：墜落的飛機、荒廢的小木屋
+- [x] 探險筆記：生態域／地標／物種三個分頁，開啟時播放解鎖動畫
+- [x] 即時合成音效
+- [x] 開始畫面、Esc 暫停選單、設定保存
+- [x] 第一／第三人稱切換（1／3）
 
 ### 未完成 / 之後可能的方向
-- [ ] 地標（捲軸已預留擴充空間）
-- [ ] 讓世界更有生命感（見對話中的提案）
+- [ ] 更多地標（見對話中的提案）
 - [ ] 觸控移動（虛擬搖桿）
-- [ ] 日夜循環、天氣、音效
-- [ ] 過陡坡面滑落、鏡頭與樹木碰撞
-- [ ] 區塊生成移到 Web Worker
+- [ ] 背景音樂
+- [ ] 過陡坡面滑落、鏡頭與樹木／建築碰撞
+- [ ] 區塊生成移到 Web Worker（紙葉植物讓區塊生成變慢）
