@@ -1,7 +1,8 @@
 # ARCHITECTURE
 
-3D 網頁小遊戲專案。目前主體是「無盡原野」探索原型：操控探險家在無限生成的低多邊形世界（六種生態域、湖泊、動植物）裡自由移動。還沒有目標與 UI，重點是移動手感與探索感。
+3D 網頁小遊戲專案「無盡原野」：操控探險家在無限生成的低多邊形世界（六種生態域、湖泊、動植物）裡自由探索，並用探險筆記記錄發現的生態域。
 
+- 目前版本：見 `js/config.js` 的 `GAME_VERSION`，更新內容見 `CHANGELOG.md`
 - 部署：GitHub Pages（Settings → Pages → Deploy from a branch → `main` / root），推上 `main` 約 1 分鐘自動部署
 - 網址：https://archie-30.github.io/project-unknow-claude-code-/
 - 練習頁：https://archie-30.github.io/project-unknow-claude-code-/practice/01-basic-scene.html
@@ -9,137 +10,127 @@
 ## 技術選擇
 
 - Three.js **r147**（`three@0.147.0`），jsDelivr CDN `<script>` 引入，不使用 import / 打包工具
-- 固定 r147 的原因：r148 起官方移除 `examples/js/`（非模組版附加元件），只剩 ES module
-- 附加元件：`examples/js/math/SimplexNoise.js`（`THREE.SimplexNoise`，傳入種子亂數產生器）
-- r147 的 `InstancedMesh` 沒有自己的包圍球（r151 才加），自動視錐剔除會算錯，所以裝飾物件關閉 `frustumCulled`，改由 `World.cull()` 以區塊為單位手動剔除
-- 所有模型都是程式內用基本幾何體組出來的（沒有外部模型檔）
+  - r148 起官方移除 `examples/js/`（非模組附加元件），要維持純 `<script>` 就停在 r147
+  - 附加元件：`examples/js/math/SimplexNoise.js`
+- 多個一般 `<script>` 依序載入，彼此透過全域的 `const` / `class` 共用（不是 ES module），**載入順序有依賴關係**，見下方檔案表
+- 所有本地 CSS/JS 網址帶 `?v=版本號`，每次發版要同步修改，避免瀏覽器快取舊檔
+- r147 的 `InstancedMesh` 沒有自己的包圍球，裝飾物件關閉 `frustumCulled`，改由 `World.cull()` 以區塊為單位剔除
+- 模型全部由程式用基本幾何體組成；捲軸簡圖是內嵌 SVG
+- 字型：Google Fonts「LXGW WenKai TC」（手寫感楷體，失敗時退回系統楷體）
 
-## 檔案結構
+## 檔案結構（依載入順序）
 
 ```
-.
-├── index.html                    # 遊戲原型（CSS + 提示框 + 全部 JS，約 1600 行）
-├── practice/
-│   └── 01-basic-scene.html       # 練習 01：方塊 + 兩盞燈 + OrbitControls
-├── ARCHITECTURE.md               # 本文件
-└── README.md
+index.html                 頁面骨架：提示框、生態域橫幅、版本號、捲軸按鈕與面板容器、script 載入順序
+css/style.css              所有 UI 樣式與捲軸簡圖動畫 keyframes
+js/config.js               GAME_VERSION、CONFIG（所有可調參數）、SUN_DIRECTION、BIOME、BIOME_INFO（名稱與描述）
+js/utils.js                mulberry32、hash2、smoothstep、clamp、lerp、damp、wrapAngle、Spring（彈簧）、WORLD_SEED
+js/terrain.js              Terrain：高度函數、三角形內插、生態域判定、地面顏色
+js/materials.js            shaderTime、gradientMap、addWind（植物搖擺）、addWaves（水波）、createMaterials、flatShaded、jitterVertices
+js/models.js               Models（所有植物／石頭／雲的幾何體）、createDecorAssets
+js/decor-rules.js          DECOR_TYPES（每種物件的縮放、碰撞、細節旗標）、BIOME_DECOR（4m 主物件機率）、GROUND_COVER（2m 地被機率）
+js/environment.js          createSky（漸層天空＋太陽光暈）、createLights（環境光＋太陽陰影跟隨）、Clouds
+js/chunk.js                Chunk：單一區塊的地形、水面、裝飾物、碰撞體
+js/world.js                World：區塊載入／卸載佇列、剔除、碰撞查詢
+js/wildlife.js             Butterflies、Birds
+js/effects.js              Ripples（水面漣漪池）
+js/explorer.js             createExplorer（角色模型骨架）、ExplorerAnimator（程序動畫）
+js/input.js                Input：鍵盤狀態、跳躍佇列、Tab 回呼
+js/player.js               Player：物理、游泳、落地／入水事件、面向與轉向速度
+js/camera.js               CameraRig：Pointer Lock、拖曳／觸控、自動跟隨、地形／水面碰撞
+js/journal-sketches.js     六種生態域的 SVG 手繪簡圖、手繪抖動濾鏡、捲軸圖示
+js/ui.js                   DiscoveryStore（localStorage 紀錄）、Hud（版本號、生態域橫幅）、Journal（捲軸）
+js/main.js                 建立所有物件、生態域追蹤、漣漪觸發、主迴圈
+practice/01-basic-scene.html   練習 01
+CHANGELOG.md               更新日誌與版本號規則
 ```
 
 ## 操作
 
 | 輸入 | 動作 |
 | --- | --- |
-| 點擊畫面 | 鎖定並隱藏滑鼠（Pointer Lock），之後移動滑鼠即轉視角 |
-| Esc | 釋放滑鼠（瀏覽器內建行為），畫面中央出現提示框，再點一次畫面即重新鎖定 |
+| 點擊畫面 | 鎖定並隱藏滑鼠，移動滑鼠轉視角（不支援鎖定的裝置改為按住拖曳） |
+| Esc | 釋放滑鼠，畫面中央出現操作提示 |
 | WASD | 以鏡頭方向為基準移動 |
-| 按住 Shift | 跑步 |
+| 按住 E | 跑步（刻意不用 Shift，避免平板切換輸入法） |
 | 空白鍵 | 跳躍（落地或游泳時才能再跳） |
-| 滾輪 | 鏡頭距離 |
-| 觸控（平板） | 單指拖曳轉視角、雙指捏合縮放（觸控裝置不使用 Pointer Lock、不顯示提示框） |
-| 網址加 `?seed=數字` | 固定世界種子（不加則每次隨機） |
+| Tab ／ 點左下捲軸圖示 | 開關探險筆記 |
+| 滾輪 ／ 雙指捏合 | 鏡頭距離 |
+| 觸控單指拖曳 | 轉視角 |
+| 網址加 `?seed=數字` | 固定世界種子 |
 
-## index.html 程式邏輯（由上而下）
+## 各模組重點
 
-### `CONFIG`
-所有可調參數：區塊大小/段數/載入與卸載範圍/細節物件顯示範圍、裝飾物取樣間距、陰影、霧、水位與游泳深度、物理、鏡頭、滑鼠靈敏度、蝴蝶與雲的數量。調手感優先改這裡。
+### 地形 `Terrain`
+- `sampleHeight`：丘陵度遮罩 × fbm 細節 + 寬緩起伏 + 山脊（丘陵區）− 湖盆（平原區）
+- `interpolate / surfaceAt / heightAt`：與網格相同切法（(00,11,10)、(00,01,11)）的三角形內插，角色、鏡頭、裝飾物都貼合實際網格
+- `biomeAt`：溫度（低頻 noise − 海拔降溫）＋濕度 → 雪原、針葉林、沙漠、莽原、森林、草原
+- `colorAt`：水下沙床、沙灘、陡坡岩石（含層理條紋）、泥土、各生態域三色地面，邊界加雜湊抖動
 
-### 工具函式
-`mulberry32`（種子亂數）、`hash2`（整數座標雜湊，murmur 式混合）、`smoothstep`、`clamp01`、`damp`（與幀率無關的平滑趨近）、`readSeed`。
+### 區塊 `Chunk`（48m × 48m，1.5m 格點）
+- `sampleHeights`：多取一圈外框格點 → 可算曲率且不必重算 noise
+- `buildTerrain`：平面著色三角形；顏色 × 曲率明暗（山脊亮、凹處暗）
+- `buildWater`：只在有水的格子生成水面；頂點 RGBA 依水深（泡沫 → 淺綠 → 深藍）；材質 `addWaves` 在頂點著色器做波浪，`flatShading` 用導數算面法線呈現低多邊形水面
+- `buildBiomeGrid / biomeNear`：4m 解析度的生態域快取
+- `localSurface`：用快取格點計算高度（不再呼叫 noise）
+- `buildDecorations`：4m 抖動格點放主物件（樹、石、灌木…）＋ 2m 抖動格點放地被（草、花、蕨…）；同資產合併成一個 `InstancedMesh`；小物件放 `detailGroup`（只在周圍 2 格顯示、不投影）
+- 建一個區塊約 6ms（軟體渲染測試環境），每幀最多一個
 
-### `Terrain`（純函式，不依賴區塊是否載入）
-- `sampleHeight(x, z)`：丘陵度遮罩 × fbm 細節 + 寬緩起伏 + 山脊（只在丘陵區）− 湖盆（只在平原區挖低）
-- `surfaceAt / heightAt`：**與網格相同切法的三角形內插**（每格切成 (00,11,10)、(00,01,11)）。角色、鏡頭、裝飾物都用它 → 不浮空不陷地
-- `biomeAt(x, z, h)`：溫度（低頻 noise − 海拔降溫）＋ 濕度 noise 決定六種生態域：
-  - 溫度 < −0.5 → 雪地；< −0.22 → 針葉林（taiga）
-  - 熱且乾 → 沙漠；偏熱偏乾 → 莽原（savanna）
-  - 濕 → 森林；其餘 → 草原
-  - 高山因海拔降溫自然出現針葉林與雪頂
-- `colorAt(...)`：每個三角面一個顏色 → 水下沙床、岸邊沙灘、陡坡岩石（沙漠為砂岩、雪地為冷色岩）、泥土、各生態域三色地面。色塊邊界加每面雜湊抖動，避免沿網格出現長直線
+### 世界 `World`
+跨區塊才重算：卸載 5 格外、依「位置＋速度預測」排序生成、周圍 1 格投影、2 格顯示細節；`cull` 做區塊視錐剔除；`groundHeight / resolveObstacles` 提供碰撞。
 
-### 材質、風與模型
-- `createGradientMap`：3 格 `NearestFilter` DataTexture → 三階硬邊
-- `createMaterials`：全部 `MeshToonMaterial` 共用 gradientMap。`decor` 一個材質畫所有植物與石頭（vertexColors）
-- `addWind(material)`：`onBeforeCompile` 在頂點著色器加入搖擺，強度由幾何體的 `sway` 屬性決定（樹冠/草尖 > 0，樹幹/石頭 = 0），相位取自實例位置。陰影用的 `decorDepth` 也掛同一段，影子會跟著動
-- `Models`：用 `part(geometry, color, swayFn)` 產生帶頂點色與 sway 的平面著色零件，`merge()` 合併成單一幾何體 → **一種物件只要一個 draw call**
-  - 樹：松樹（三層錐）、雪松（加積雪層）、闊葉樹（多團樹冠＋側枝）、白樺（白幹黑紋）、金合歡（傘狀平頂）
-  - 其他：仙人掌（含花）、灌木／莓果灌木、枯枝叢、草叢、乾草、蕨類、兩組花叢、蘑菇（紅帽白點）、蘆葦（含香蒲穗）、倒木（年輪＋青苔）、石塊／積雪石、小碎石、雲
-- `createDecorAssets()`：上述幾何體整個遊戲各只建立一份
-- `DECOR_TYPES`：每種物件的縮放範圍、碰撞類型（樹幹、可站石頭、倒木）、是否為細節物件、色調
-- `BIOME_DECOR`：各生態域的物件出現機率表（樹木機率再乘上森林密度 noise → 形成樹林與空地）
+### 角色 `createExplorer` / `ExplorerAnimator`
+- 骨架：`root → lean（轉彎傾斜）→ body（骨盆，高 0.95）→ torso → head → hat`；`torso → shoulder → elbow`；`body → hip → knee → ankle`；`torso → pack`、`scarfA/B`
+- 動畫：每幀依狀態算出「地面／空中／游泳」三組目標姿勢，用 `air`、`swim` 權重混合後以 `damp` 趨近
+  - 地面：`phase` 依移動距離 ÷ 步長推進；走跑用 `run` 權重混合步幅；骨盆與軀幹反向扭轉、重心左右轉移、`cos²` 上下起伏、腳踝補償讓腳掌貼地
+  - 待機：呼吸、重心搖擺、隨機張望
+  - 彈簧（`Spring`）：`bob`（落地下蹲回彈）、`lean`（加減速前後傾）、`roll`（轉彎內傾）、`pack`、`scarf`、`hat`
 
-### 天空、水、光源
-- `createSky()`：CanvasTexture 漸層貼在跟隨鏡頭的反面球體，霧色＝地平線色
-- `createWater()`：水位 −3.5m 的半透明 toon 平面，跟著玩家移動
-- `createLights()`：冷青色環境光＋暖黃太陽（陰影只涵蓋玩家周圍 ±36m，並對齊 texel 防閃爍）
+### 玩家 `Player`
+120Hz 固定步長物理＋渲染內插；加速度移動、上坡減速、水深減速；跳躍緩衝＋coyote time；水深超過游泳深度時漂浮；記錄 `landImpact`（給動畫）與 `splash`（給漣漪）；`turnRate` 給轉彎傾斜。
 
-### `Chunk`（48m × 48m）
-- `buildTerrain()`：33×33 格點（1.5m 間距）→ 2048 個平面著色三角形
-- `pickDecor()`：依水深（水下無、岸邊蘆葦碎石）、坡度（陡坡只放石頭）、生態域機率表選出物件
-- `buildDecorations()`：4m 抖動格點（每區塊 144 個候選）→ 依資產分組建立 `InstancedMesh`，每實例隨機旋轉、縮放、色調；同時建立碰撞體
-- 小物件（草、花、蕨、蘑菇、蘆葦、碎石、枯枝）放在 `detailGroup`，只在玩家周圍 2 格內顯示，且不投射陰影
-- 建一個區塊約 5ms（測試環境為軟體渲染），每幀最多建一個
+### 鏡頭 `CameraRig`
+- 桌機點擊 → Pointer Lock；失敗（`pointerlockerror`）或觸控裝置 → 拖曳模式
+- `autoFollow`：手動操作後 `autoCameraDelay` 秒起，移動時把 yaw 平滑轉向「移動方向的背後」（面向鏡頭跑時不轉，避免甩鏡頭）；閒置久了俯仰角回到 `autoCameraPitch`
+- 碰撞：沿鏡頭方向 28 段取樣，地面取地形與水面的較高者
 
-### `World`（區塊管理）
-- 跨進新區塊才 `refresh()`：卸載 5 格外、依「位置＋速度預測點」排序要生成的區塊、更新陰影與細節顯示
-- `cull(camera)`：區塊包圍盒對視錐剔除，玩家周圍 1 格永遠顯示
-- `groundHeight()`：地形或可站物件頂面；`resolveObstacles()`：水平圓形推擠並去除撞牆方向速度
-
-### 生物與天空物件
-- `Butterflies`：18 隻，只在草原／森林／莽原出現，在玩家 45m 內繞著錨點飛舞，太遠就重生到附近
-- `Birds`：2 群各 5 隻，在玩家附近高空盤旋、拍翅
-- `Clouds`：16 朵低多邊形雲，隨風飄動、繞著玩家循環
-
-### 探險家角色
-- `createExplorer()`：以方塊／圓柱組成的階層骨架：身體 → 軀幹（襯衫、背心、皮帶、紅圍巾、背包、睡袋、水壺）→ 頭（臉、眼、鼻、頭髮、探險帽）；肩 → 手肘；髖 → 膝。總高約 1.8m
-- `ExplorerAnimator`：程序動畫（非預錄）。依狀態算出各關節目標角度再平滑趨近：
-  - 待機：呼吸
-  - 走／跑：步伐相位隨速度前進，腿、膝、手臂交替擺動，跑步時前傾、手肘彎、身體上下起伏
-  - 空中：一腳收一腳伸、手臂張開
-  - 游泳：前傾、手臂輪流划水、腿打水
-
-### `Input`
-鍵盤狀態；空白鍵排入佇列由物理步驟消耗；失焦清空。
-
-### `Player`
-- 120Hz 固定步長物理＋渲染內插
-- 加速度趨近目標速度、上坡減速、水深越深越慢（最多到 50%）
-- 跳躍緩衝＋coyote time，不能二段跳
-- 水：水深超過游泳深度時，支撐面改為「水位 − 1.25m」→ 漂浮游泳，可從水中跳出（跳力 75%）
-- 落地壓扁回彈（水中不觸發）；面向平滑轉向移動方向
-
-### `CameraRig`
-- 桌機：點擊 → `requestPointerLock`；鎖定時 `mousemove` 的 `movementX/Y` 轉視角；`pointerlockchange` 控制提示框
-- 觸控：Pointer Events 單指旋轉、雙指縮放
-- 鏡頭碰撞：從焦點沿鏡頭方向 28 段取樣，地面高度取「地形與水面的較高者」，擋住就拉近（拉近立即、拉遠緩慢）
+### 介面 `ui.js`
+- `DiscoveryStore`：`localStorage` 鍵 `endless-meadow.biomes`（讀寫都包 try/catch）
+- `Hud.showBiome`：重播 CSS 動畫顯示生態域名稱與 NEW
+- `Journal`：`toggle`（Tab／按鈕）、`markDiscovered`（紅點、NEW、下次打開播放點亮動畫）；未發現的卡片用 CSS `filter` 呈現咖啡色素描並暫停動畫，發現後 `filter: none` 漸變為彩色
+- 生態域判定在 `main.js`：每 0.2 秒取樣，新生態域持續 0.6 秒才切換（避免邊界來回閃）
 
 ### 主迴圈 `frame()`
-風力時間 → 固定步長物理 → 角色內插與動畫 → 區塊 → 鏡頭 → 太陽／水面跟隨 → 蝴蝶、鳥、雲 → 天空球 → 區塊剔除 → render
+shaderTime → 固定步長物理 → 角色動畫 → 區塊 → 鏡頭 → 太陽 → 蝴蝶／鳥／雲 → 漣漪 → 生態域判定 → 天空跟隨 → 剔除 → render
+
+## 如何新增內容
+
+- **新生態域**：`BIOME`、`BIOME_INFO`（config）→ `Terrain.biomeAt` 條件與 `groundPalette` → `BIOME_DECOR`、`GROUND_COVER` → `BIOME_SKETCHES` 加簡圖
+- **新植物／物件**：`Models` 加幾何體 → `createDecorAssets` 註冊 → `DECOR_TYPES` 定義 → 加進生態域機率表
+- **發版**：改 `GAME_VERSION`、`index.html` 的 `?v=`、`CHANGELOG.md`
 
 ## 效能重點
 
-- 每幀最多建 1 個區塊；跨區塊才重算需求
-- 同類裝飾物一個 InstancedMesh（共用 geometry／材質），細節物件只在近距離顯示
-- 陰影：貼圖只涵蓋玩家周圍，只有周圍 1 格區塊的大型物件投射陰影
+- 每幀最多建 1 個區塊，跨區塊才重算需求；裝飾物用 `localSurface` 與生態域快取避免重算 noise
+- 同類物件一個 InstancedMesh、共用 geometry／材質；細節物件只在近距離顯示且不投影
+- 陰影貼圖只涵蓋玩家周圍 ±36m
 - 像素比上限 1.5
-- 已測試：連續移動 3000m，同時存在區塊最多 65 個，卸載後回落；鏡頭沒有穿到地面下
+- 已測試：連續移動 3000m，同時存在區塊最多 65 個；鏡頭不會穿到地面下
 
 ## 進度
 
 ### 已完成
-- [x] 練習 01：基本渲染流程
-- [x] 無限區塊地形（平原／丘陵／山脈／湖泊）、動態生成與卸載
-- [x] 六種生態域與各自的地面色、植物與石頭，風吹搖擺
-- [x] 蝴蝶、鳥群、雲
-- [x] 探險家角色模型與程序動畫（待機／走／跑／跳／游泳）
-- [x] 物理：走、跑、跳、重力、落地、下坡吸附、游泳、樹與石頭碰撞、站上石頭／倒木
-- [x] 第三人稱鏡頭：Pointer Lock 滑鼠視角、Esc 釋放、觸控旋轉縮放、地形與水面碰撞
-- [x] 低多邊形 toon 風格
+- [x] 無限區塊地形、六種生態域、湖泊與水面效果
+- [x] 植物／石頭約 20 種、地被層、風吹搖擺；蝴蝶、鳥群、雲
+- [x] 探險家角色與程序動畫（待機／走／跑／跳／游泳、彈簧次級動作）
+- [x] 物理：走、跑、跳、游泳、碰撞、站上石頭／倒木
+- [x] 鏡頭：Pointer Lock、拖曳、觸控、自動跟隨、地形與水面碰撞
+- [x] 探險筆記捲軸（生態域圖鑑）、生態域進入提示、版本號、更新日誌
 
 ### 未完成 / 之後可能的方向
-- [ ] 遊戲化（目標、收集、記錄）— 見對話中的提案
-- [ ] 觸控移動操作（虛擬搖桿）
+- [ ] 地標（捲軸已預留擴充空間）
+- [ ] 讓世界更有生命感（見對話中的提案）
+- [ ] 觸控移動（虛擬搖桿）
+- [ ] 日夜循環、天氣、音效
 - [ ] 過陡坡面滑落、鏡頭與樹木碰撞
-- [ ] 日夜循環、天氣
-- [ ] 音效（腳步、風、水、鳥鳴）
 - [ ] 區塊生成移到 Web Worker
-- [ ] 檔案拆分（index.html 已約 1600 行，再擴充前建議拆成多個 `<script src>` 檔）
