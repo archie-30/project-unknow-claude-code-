@@ -3,7 +3,7 @@ const shaderWind = { value: 1 };
 const shaderPlayer = { value: new THREE.Vector3(0, -1000, 0) };
 
 function createGradientMap(renderer) {
-  const steps = new Uint8Array([118, 150, 186, 216, 236, 246]);
+  const steps = new Uint8Array([112, 144, 178, 206, 224, 234]);
   const format = renderer.capabilities.isWebGL2 ? THREE.RedFormat : THREE.LuminanceFormat;
   const texture = new THREE.DataTexture(steps, steps.length, 1, format);
   texture.minFilter = THREE.LinearFilter;

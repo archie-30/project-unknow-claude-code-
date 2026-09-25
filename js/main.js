@@ -348,6 +348,7 @@ function simulate(dt) {
   world.update(player.position, player.velocity);
 
   const biome = biomeTracker.current === null ? BIOME.MEADOW : biomeTracker.current;
+  glare = damp(glare, biome === BIOME.SNOW ? 0.74 : biome === BIOME.DESERT ? 0.84 : biome === BIOME.SAVANNA || biome === BIOME.LAKE ? 0.93 : 1, 0.6, dt);
   forestAmount = damp(forestAmount, biome === BIOME.FOREST ? 1 : biome === BIOME.TAIGA ? 0.5 : 0, 0.8, dt);
   weather.update(dt, camera.position, biome, timeOfDay.env);
   const env = timeOfDay.update(dt, weather);
@@ -391,14 +392,15 @@ function simulate(dt) {
 }
 
 const blizzardFog = new THREE.Color();
+let glare = 1;
 
 function applyEnvironment(env) {
   sky.update(env);
   horizon.update(env, camera.position);
-  lights.update(env, player.renderPosition);
+  lights.update(env, player.renderPosition, glare);
   scene.fog.color.copy(env.fogColor);
   const gale = weather.blizzard || 0;
-  scene.fog.color.lerp(blizzardFog.setRGB(0.86, 0.89, 0.92).multiplyScalar(0.35 + 0.65 * env.daylight), gale * 0.85);
+  scene.fog.color.lerp(blizzardFog.setRGB(0.74, 0.79, 0.84).multiplyScalar(0.35 + 0.65 * env.daylight), gale * 0.85);
   scene.fog.near = lerp(lerp(lerp(CONFIG.fogNear, 14, env.fog), 10, env.dust), 4, gale);
   scene.fog.far = lerp(lerp(lerp(CONFIG.fogFar, 75, env.fog), 55, env.dust), 40, gale);
   renderer.setClearColor(scene.fog.color);

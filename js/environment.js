@@ -180,7 +180,7 @@ function createLights(scene) {
         sun.shadow.map = null;
       }
     },
-    update(env, center) {
+    update(env, center, glare = 1) {
       const dir = env.lightDirection;
       right.crossVectors(UP, dir).normalize();
       up.crossVectors(dir, right);
@@ -192,10 +192,10 @@ function createLights(scene) {
       sun.target.position.copy(snapped);
       sun.position.copy(snapped).addScaledVector(dir, 110);
       sun.color.copy(env.lightColor);
-      sun.intensity = env.lightIntensity;
+      sun.intensity = env.lightIntensity * glare;
       hemi.color.copy(env.hemiSky);
       hemi.groundColor.copy(env.hemiGround);
-      hemi.intensity = env.hemiIntensity;
+      hemi.intensity = env.hemiIntensity * (0.4 + 0.6 * glare);
       ambient.intensity = env.ambientIntensity;
     },
   };

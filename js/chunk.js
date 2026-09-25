@@ -19,7 +19,7 @@ class Chunk {
     this.group.add(this.terrain);
     this.water = this.buildWater(materials.water);
     if (this.water) this.group.add(this.water);
-    this.nearbyLandmarks = Landmarks.near(this.originX + CONFIG.chunkSize / 2, this.originZ + CONFIG.chunkSize / 2, CONFIG.chunkSize * 0.72 + 14);
+    this.nearbyLandmarks = Landmarks.near(this.originX + CONFIG.chunkSize / 2, this.originZ + CONFIG.chunkSize / 2, CONFIG.chunkSize * 0.72 + 24);
     this.landmarks = [];
     this.buildLandmarks(materials);
     this.buildDecorations(materials, assets);
@@ -217,9 +217,9 @@ class Chunk {
     }
   }
 
-  clearedByLandmark(x, z) {
+  clearedByLandmark(x, z, margin = 0) {
     for (const lm of this.nearbyLandmarks) {
-      if (Math.hypot(x - lm.x, z - lm.z) < lm.clear) return true;
+      if (Math.hypot(x - lm.x, z - lm.z) < lm.clear + margin) return true;
     }
     return false;
   }
@@ -298,6 +298,7 @@ class Chunk {
         this.localSurface(lx, lz, surface);
         const forest = 0.4 + 1.2 * smoothstep(-0.2, 0.6, Terrain.noise((this.originX + lx) * 0.008 + 900, (this.originZ + lz) * 0.008 - 300));
         const typeName = this.pickDecor(surface.height, surface.normalY, this.biomeNear(lx, lz), forest, roll);
+        if (typeName && DECOR_TYPES[typeName].tree && this.nearbyLandmarks.length && this.clearedByLandmark(this.originX + lx, this.originZ + lz, 6)) continue;
         if (typeName) place(typeName, lx, lz, r1, r2, r3, r4);
       }
     }

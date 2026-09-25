@@ -154,6 +154,11 @@ js/main.js                 建立所有系統、暫停／繼續、發現判定�
 - 粒子位置以世界座標格點包覆（`x + size * round((center - x) / size)`），不再跟隨玩家
 - `Landmarks.inCell` 鄰格改用 150m 間距並嘗試 24 次；`SmokePlumes.add` 可指定煙的大小
 
+## v2.1.03 補充
+
+- `lights.update(env, center, glare)`：`main.js` 依生態域平滑計算 `glare`（雪原 0.74、沙漠 0.84），壓低太陽與半球光
+- `Chunk.clearedByLandmark(x, z, margin)`：樹木額外多保留 6m，`nearbyLandmarks` 搜尋半徑同步加大
+
 ## 效能重點
 
 - 每幀最多建 1 個區塊，跨區塊才重算需求；裝飾物用 `localSurface` 與生態域快取避免重算 noise

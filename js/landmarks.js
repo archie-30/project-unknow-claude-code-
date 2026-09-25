@@ -1,7 +1,7 @@
 const Landmarks = (() => {
   const cell = CONFIG.landmarkCellSize;
   const cache = new Map();
-  const CLEAR_RADIUS = { [LANDMARK.PLANE]: 13, [LANDMARK.CABIN]: 10 };
+  const CLEAR_RADIUS = { [LANDMARK.PLANE]: 14, [LANDMARK.CABIN]: 11 };
 
   function suitsCabin(biome) {
     return biome === BIOME.FOREST || biome === BIOME.TAIGA || biome === BIOME.MEADOW || biome === BIOME.SNOW;

@@ -10,7 +10,7 @@ const PAPER = {
   birchBark: 0xf0ece2,
   cream: 0xf3ead8,
   stone: 0xbdb8ae,
-  snow: 0xdfe1df,
+  snow: 0xc2cdd3,
 };
 
 const Models = (() => {

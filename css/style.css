@@ -659,11 +659,11 @@ body::after {
 }
 
 .biome-card.unlocking .sketch {
-  animation: ink-to-color 2s ease forwards;
+  animation: ink-to-color 1s ease forwards;
 }
 
 .biome-card.unlocking .sketch-frame {
-  animation: reveal 1.8s ease;
+  animation: reveal 1s ease;
 }
 
 .card-stamp {
@@ -895,11 +895,11 @@ kbd {
 }
 
 .biome-card.unlocking .sketch-color {
-  animation: ink-wipe 2.2s cubic-bezier(0.45, 0.05, 0.3, 1) both;
+  animation: ink-wipe 1.1s cubic-bezier(0.45, 0.05, 0.3, 1) both;
 }
 
 .biome-card.unlocking .sketch-frame {
-  animation: reveal-glow 2.4s ease;
+  animation: reveal-glow 1.2s ease;
 }
 
 .card-new,

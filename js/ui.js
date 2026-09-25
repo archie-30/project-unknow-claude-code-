@@ -233,7 +233,7 @@ class Journal {
     });
     this.refresh();
     if (!silent && this.audio) this.audio.rustle();
-    if (this.isOpen) this.scheduleReveal(silent ? 800 : 500);
+    if (this.isOpen) this.scheduleReveal(silent ? 450 : 300);
   }
 
   handleKey(e) {
@@ -269,8 +269,8 @@ class Journal {
       }
       this.revealTimers.push(setTimeout(() => {
         this.reveal(cat, order[index]);
-        this.revealTimers.push(setTimeout(() => step(index + 1), 1500));
-      }, hidden ? 650 : 0));
+        this.revealTimers.push(setTimeout(() => step(index + 1), 750));
+      }, hidden ? 450 : 0));
     };
     this.revealTimers.push(setTimeout(() => step(0), delay));
   }
@@ -285,7 +285,7 @@ class Journal {
     card.classList.add('unlocking');
     card.querySelector('h4').textContent = card.querySelector('h4').dataset.name;
     if (this.audio) this.audio.chime();
-    setTimeout(() => card.classList.remove('unlocking'), 2600);
+    setTimeout(() => card.classList.remove('unlocking'), 1300);
     this.refresh();
   }
 
@@ -305,7 +305,7 @@ class Journal {
       const withNew = JOURNAL_PAGES.findIndex((p) => this.store.unseen[p.key].size > 0);
       if (withNew >= 0) this.showPage(withNew, true);
       this.refresh();
-      this.scheduleReveal(800);
+      this.scheduleReveal(450);
     } else {
       this.revealTimers.forEach(clearTimeout);
       this.revealTimers = [];
